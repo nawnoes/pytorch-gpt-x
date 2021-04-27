@@ -10,9 +10,7 @@ from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 
 from transformers import BertTokenizer
-# from apex import amp
 
-from fairseq.optim.adafactor import Adafactor
 import os
 import json
 import logging
@@ -20,6 +18,21 @@ from datetime import datetime
 from dataset import GPT3Dataset
 from arg import ModelConfig
 from model_gpt3 import ReformerGPT3
+from deepspeed_util import get_argument_parser
+import deepspeed
+
+def get_arguments():
+    parser = get_argument_parser()
+    # Include DeepSpeed configuration arguments
+    parser = deepspeed.add_config_arguments(parser)
+
+    args = parser.parse_args()
+
+    # no cuda mode is not supported
+    args.no_cuda = False
+
+    return args
+
 
 class ReformerGPT3Trainer(object):
     def __init__(self,
@@ -49,7 +62,7 @@ class ReformerGPT3Trainer(object):
         self.fp16 = fp16
 
         if device is None:
-            self.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+            self.device = 'cuda:1' if torch.cuda.is_available() else 'cpu'
 
         if eval_batch_size is None:
             self.eval_batch_size = train_batch_size
@@ -73,7 +86,6 @@ class ReformerGPT3Trainer(object):
               train_dataloader,
               eval_dataloader,
               optimizer,
-              scheduler,
               log_steps,
               ckpt_steps,
               gradient_accumulation_steps=1):
@@ -87,16 +99,10 @@ class ReformerGPT3Trainer(object):
         step_perplexity = 0.0
 
         # Load Checkpoint
-        if os.path.isfile(f'{self.checkpoint_path}/{self.model_name}.pth'):
-            checkpoint = torch.load(f'{self.checkpoint_path}/{self.model_name}.pth', map_location=self.device)
-            start_epoch = checkpoint['epoch']
-            losses = checkpoint['losses']
-            global_steps = checkpoint['train_step']
-            start_step = global_steps if start_epoch==0 else global_steps*self.train_batch_size % len(train_dataloader)
-
-            self.model.load_state_dict(checkpoint['model_state_dict'])
-            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-            amp.load_state_dict(checkpoint['amp'])
+        if os.path.isfile(f'{self.checkpoint_path}/{self.model_name}'):
+            _, checkpoint_state_dict = self.model.network.load_checkpoint(self.checkpoint_path, self.model_name)
+            start_epoch = checkpoint_state_dict['epoch']
+            start_step = checkpoint_state_dict['step']
 
         self.model.train()
         self.model.to(self.device)
@@ -121,17 +127,13 @@ class ReformerGPT3Trainer(object):
                     continue
                 inputs, labels, inputs_mask = batch
                 inputs, labels, inputs_mask = inputs.to(self.device), labels.to(self.device), inputs_mask.to(self.device)
-                lm_logit, loss = self.model(inputs,labels,input_mask=inputs_mask)
+                lm_logit, loss = self.model.network(inputs,labels,input_mask=inputs_mask)
 
                 step_perplexity += torch.exp(loss)
                 origin_loss = loss.item()
 
                 loss = loss / gradient_accumulation_steps  # divide loss into gradient accumulation step
-                if self.fp16:
-                    with amp.scale_loss(loss, optimizer) as scaled_loss:
-                        scaled_loss.backward()
-                else:
-                    loss.backward()
+                self.model.network.backward(loss) # run backpropagation
 
                 step_loss += origin_loss
                 losses[global_steps] = origin_loss
@@ -139,14 +141,9 @@ class ReformerGPT3Trainer(object):
                 local_steps += 1
                 global_steps += 1
 
-                if global_steps % gradient_accumulation_steps == 0:
-                    if self.fp16:
-                        torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), max_norm=1.0)
-                    else:
-                        torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
-
-                    optimizer.step()
-                    self.model.zero_grad()
+                if self.model.network.is_gradient_accumulation_boundary():
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                    self.model.network.step()
 
                 if global_steps % log_steps == 0:
                     pb.set_postfix_str(f'''{datetime.now()} | Train Loss: {step_loss / local_steps} | Steps: {global_steps}''')
@@ -155,7 +152,7 @@ class ReformerGPT3Trainer(object):
                     step_perplexity = 0.0
 
                 if global_steps % ckpt_steps == 0:
-                    self.save(epoch, self.model, optimizer, losses, global_steps)
+                    self.save(epoch, self.model.network, losses, global_steps)
                     logging.info(f'{datetime.now()} | Saved checkpoint to: {self.checkpoint_path}')
                     with open(f'{self.log_dir}/{self.model_name}_train_results.json', 'w') as results_file:
                         json.dump(losses, results_file)
@@ -166,7 +163,7 @@ class ReformerGPT3Trainer(object):
             self.model.train()
             start_step = 0
 
-        self.save(epoch, self.model, optimizer, losses, global_steps)
+        self.save(epoch, self.model.network, losses, global_steps)
 
         return self.model
 
@@ -191,7 +188,7 @@ class ReformerGPT3Trainer(object):
             inputs, labels, inputs_mask = inputs.to(self.device), labels.to(self.device), inputs_mask.to(self.device)
 
             with torch.no_grad():
-                lm_logit, loss = self.model(inputs, labels, input_mask=inputs_mask)
+                lm_logit, loss = self.model.network(inputs, labels, input_mask=inputs_mask)
 
             tmp_eval_loss = loss
             tmp_perplexity = torch.exp(tmp_eval_loss)
@@ -211,28 +208,22 @@ class ReformerGPT3Trainer(object):
                 results_file.write(f'{datetime.now()} | Step: {step} | Eval Loss: {total_eval_loss} | Perplexity: {total_perplexity}\n')
                 results_file.close()
 
-    def save(self, epoch, model, optimizer, losses, train_step):
-        torch.save({
-            'epoch': epoch,  # 현재 학습 epoch
-            'model_state_dict': model.state_dict(),  # 모델 저장
-            'optimizer_state_dict': optimizer.state_dict(),  # 옵티마이저 저장
-            'losses': losses,  # Loss 저장
-            'train_step': train_step,  # 현재 진행한 학습
-            'amp': amp.state_dict()
-        }, f'{self.checkpoint_path}/{self.model_name}.pth')
-
+    def save(self,epoch, model_engine, losses, train_step):
+        checkpoint_state_dict = {
+          'epoch': epoch,  # 현재 학습 epoch
+          'losses': losses,  # Loss 저장
+          'train_step': train_step,  # 현재 진행한 학습
+        }
+        model_engine.save_checkpoint(self.checkpoint_path, self.model_name, checkpoint_state_dict)
 
 def main():
     torch.manual_seed(9)
-    # base_path = '/content/drive/My Drive/Colab Notebooks/transformer-electra'
-    base_path = '.'
-    # base_path = '/Users/a60058238/Desktop/dev/workspace/transformer-electra'
+    args = get_arguments()
 
-    log_dir = f'{base_path}/logs'
-    config_path = f'{base_path}/config.json'
+    print("DeepSpeed Args = {}".format(args))
 
     # Config
-    config = ModelConfig(config_path=config_path).get_config()
+    config = ModelConfig(config_path=args.config).get_config()
 
     # Tokenizer
     tokenizer = BertTokenizer(vocab_file=config.vocab_path, do_lower_case=False)
@@ -250,12 +241,9 @@ def main():
 
     model.cuda()
 
-    # optimizer = Adafactor(model.parameters())
-    optimizer = Adafactor(model.parameters(), scale_parameter=False, relative_step=False, warmup_init=False, lr=1e-3)
-
-    if config.fp16:
-        model, optimizer = amp.initialize(model, optimizer, opt_level=config.fp16_opt_level)
-
+    model.network, optimizer, _, _ = deepspeed.initialize(args=args,
+                                                         model=model.network,
+                                                         model_parameters=model.parameters())
 
     # Pretraining Trainer
     trainer = ReformerGPT3Trainer(dataset, model, tokenizer,
@@ -264,7 +252,7 @@ def main():
                                   model_name=config.model_name,
                                   train_batch_size=config.batch_size,
                                   eval_batch_size=config.batch_size,
-                                  log_dir=log_dir,
+                                  log_dir=args.log_dir,
                                   fp16=config.fp16
                                   )
 

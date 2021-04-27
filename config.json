@@ -1,7 +1,7 @@
 {
-  "vocab_path" : "../data/vocab-v1",
-  "data_path" :"../data/train/" ,
-  "checkpoint_path" : "../checkpoints",
+  "vocab_path" : "./data/vocab-v1.txt",
+  "data_path" :"./data/train/" ,
+  "checkpoint_path" : "./checkpoints",
   "model_name": "reformer-gpt3",
   "dim": 12288,
   "depth": 96,
@@ -11,7 +11,7 @@
   "epochs" : 10,
   "log_steps" : 1,
   "ckpt_steps" : 1000,
-  "gradient_accumulation_steps" : 160000,
+  "gradient_accumulation_steps" : 512,
   "fp16": false,
   "fp16_opt_level": "O2"
 }
