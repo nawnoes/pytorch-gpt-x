@@ -17,6 +17,12 @@ def get_argument_parser():
         default='./config.json',
         help='Configuration path of json file  for pretraining GPT-3 '
     )
+    parser.add_argument(
+      "--local_rank",
+      type=int,
+      default=-1,
+      help="local_rank for distributed training on gpus"
+    )
 
     return parser
 

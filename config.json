@@ -13,5 +13,6 @@
   "ckpt_steps" : 1000,
   "gradient_accumulation_steps" : 512,
   "fp16": false,
-  "fp16_opt_level": "O2"
+  "fp16_opt_level": "O2",
+  "device": "cuda"
 }

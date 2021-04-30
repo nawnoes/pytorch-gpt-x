@@ -18,7 +18,7 @@ from datetime import datetime
 from dataset import GPT3Dataset
 from arg import ModelConfig
 from model_gpt3 import ReformerGPT3
-from deepspeed_util import get_argument_parser
+from ds_util import get_argument_parser
 import deepspeed
 
 def get_arguments():
@@ -32,6 +32,27 @@ def get_arguments():
     args.no_cuda = False
 
     return args
+
+
+def checkpoint_model(PATH, ckpt_id, model, epoch, losses,
+                     train_step):
+    """Utility function for checkpointing model + optimizer dictionaries
+       The main purpose for this is to be able to resume training from that instant again
+    """
+    checkpoint_state_dict = {
+        'epoch': epoch,
+        'losses': losses,  # Loss 저장
+        'train_step': train_step,  # 현재 진행한 학습
+    }
+
+    success = model.network.save_checkpoint(PATH, ckpt_id,
+                                            checkpoint_state_dict)
+    status_msg = 'checkpointing: PATH={}, ckpt_id={}'.format(PATH, ckpt_id)
+    if success:
+        logging.info(f"Success {status_msg}")
+    else:
+        logging.warning(f"Failure {status_msg}")
+    return
 
 
 class ReformerGPT3Trainer(object):
@@ -142,7 +163,7 @@ class ReformerGPT3Trainer(object):
                 global_steps += 1
 
                 if self.model.network.is_gradient_accumulation_boundary():
-                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                    # torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
                     self.model.network.step()
 
                 if global_steps % log_steps == 0:
@@ -152,7 +173,7 @@ class ReformerGPT3Trainer(object):
                     step_perplexity = 0.0
 
                 if global_steps % ckpt_steps == 0:
-                    self.save(epoch, self.model.network, losses, global_steps)
+                    self.save(epoch, losses, global_steps)
                     logging.info(f'{datetime.now()} | Saved checkpoint to: {self.checkpoint_path}')
                     with open(f'{self.log_dir}/{self.model_name}_train_results.json', 'w') as results_file:
                         json.dump(losses, results_file)
@@ -163,7 +184,7 @@ class ReformerGPT3Trainer(object):
             self.model.train()
             start_step = 0
 
-        self.save(epoch, self.model.network, losses, global_steps)
+        self.save(epoch, losses, global_steps)
 
         return self.model
 
@@ -208,13 +229,15 @@ class ReformerGPT3Trainer(object):
                 results_file.write(f'{datetime.now()} | Step: {step} | Eval Loss: {total_eval_loss} | Perplexity: {total_perplexity}\n')
                 results_file.close()
 
-    def save(self,epoch, model_engine, losses, train_step):
+    def save(self, epoch, losses, train_step):
         checkpoint_state_dict = {
           'epoch': epoch,  # 현재 학습 epoch
           'losses': losses,  # Loss 저장
           'train_step': train_step,  # 현재 진행한 학습
         }
-        model_engine.save_checkpoint(self.checkpoint_path, self.model_name, checkpoint_state_dict)
+        print(checkpoint_state_dict)
+        # TODO fix DeepSpeed save_checkpoint ERROR
+        self.model.network.save_checkpoint(self.checkpoint_path, self.model_name, checkpoint_state_dict)
 
 def main():
     torch.manual_seed(9)

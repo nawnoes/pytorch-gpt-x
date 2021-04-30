@@ -15,7 +15,7 @@ class ModelConfig:
     return self.arg
 
 if __name__=='__main__':
-  configs = ModelConfig('/Users/a60058238/Desktop/dev/workspace/reformer-gpt3/deepspeed_config.json').get_config()
+  configs = ModelConfig('/ds_config.json').get_config()
   print(configs)
 
 
