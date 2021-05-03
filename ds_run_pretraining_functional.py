@@ -4,7 +4,6 @@ import sys
 sys.path.append('../')
 
 import torch
-import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
 
 from tqdm import tqdm
@@ -17,7 +16,7 @@ import logging
 from datetime import datetime
 from dataset import GPT3Dataset
 from arg import ModelConfig
-from model_gpt3 import ReformerGPT3
+from model.reformer_gpt_x import ReformerGPT3
 from ds_util import get_argument_parser
 import deepspeed
 
