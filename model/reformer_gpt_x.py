@@ -3,7 +3,7 @@ from reformer_pytorch import ReformerLM
 from torch.nn import CrossEntropyLoss
 
 
-class ReformerGPT3(nn.Module):
+class ReformerGPTX(nn.Module):
     def __init__(self, num_tokens, dim, depth, max_seq_len, heads, causal=True):
         super().__init__()
         self.reformer = ReformerLM(

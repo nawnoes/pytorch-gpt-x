@@ -16,7 +16,8 @@ import logging
 from datetime import datetime
 from dataset import GPT3Dataset
 from arg import ModelConfig
-from model.reformer_gpt_x import ReformerGPT3
+from model.reformer_gpt_x import ReformerGPTX
+from model.transformer_gpt_x import TransformerGPTX
 from ds_util import get_argument_parser
 import deepspeed
 
@@ -164,36 +165,8 @@ def save(config, model, epoch, losses, train_step):
       'losses': losses,  # Loss 저장
       'train_step': train_step,  # 현재 진행한 학습
     }
-    print(checkpoint_state_dict)
-
-    # TODO fix DeepSpeed save_checkpoint ERROR
     model.save_checkpoint(config.checkpoint_path, config.model_name, checkpoint_state_dict)
-# def save_checkpoint(model_engine, save_dir, tag, client_state={}):
-#
-#     save_path = model_engine._get_ckpt_name(save_dir, tag)
-#     # A hack to save the checkpointing directory. Pipeline parallelism overrides
-#     # module_state_dict() and uses this path to save the model. module_state_dict()
-#     # then instead just returns None.
-#     model_engine._curr_ckpt_path = os.path.join(save_dir, tag)
-#
-#     state = dict(
-#         module=model_engine.module_state_dict(),
-#         optimizer=model_engine.optimizer.state_dict()
-#         if model_engine.optimizer and not model_engine.zero_optimization() else None,
-#         lr_scheduler=model_engine.lr_scheduler.state_dict()
-#         if model_engine.lr_scheduler is not None else None,
-#         csr_tensor_module_names=model_engine.csr_tensor_module_names,
-#         skipped_steps=model_engine.skipped_steps,
-#         global_steps=model_engine.global_steps,
-#         global_samples=model_engine.global_samples,
-#         dp_world_size=model_engine.dp_world_size,
-#         mp_world_size=model_engine.mp_world_size,
-#     )
-#     state.update(client_state)
-#
-#     #logger.info('Saving model checkpoint: {}'.format(save_path))
-#     torch.save(state, save_path)
-#     model_engine._curr_save_path = None
+
 
 def main():
     torch.manual_seed(9)
@@ -214,24 +187,33 @@ def main():
     logging.basicConfig(filename=f'{config.log_dir}/{config.model_name}-{datetime.now().date()}.log', level=logging.INFO)
 
     # Model
-    model = ReformerGPT3(
-        num_tokens=tokenizer.vocab_size,
-        dim=config.dim,
-        depth=config.depth,
-        heads=config.n_head,
-        max_seq_len=config.max_seq_len, # AxialPositionalEmbedding을 위한 (79,64) 값 and max_len/(bucket_size*2) == 0 이어야한다. 현재 bucket_size = 64
-    )
+    if 'reformer' in config.model_name:
+        model = ReformerGPTX(
+            num_tokens=tokenizer.vocab_size,
+            dim=config.dim,
+            depth=config.depth,
+            heads=config.n_head,
+            max_seq_len=config.max_seq_len, # AxialPositionalEmbedding을 위한 (79,64) 값 and max_len/(bucket_size*2) == 0 이어야한다. 현재 bucket_size = 64
+        )
+    elif 'transformer' in config.model_name:
+        model = TransformerGPTX(
+            vocab_size= tokenizer.vocab_size,
+            dim = config.dim,
+            depth = config.depth,
+            head_num= config.n_head,
+            max_seq_len= config.max_seq_len,
+        )
     model.cuda()
 
     # DeepSpeed initialize
     model, optimizer, _, _ = deepspeed.initialize(args=args,
-                                                         model=model,
-                                                         model_parameters=model.parameters())
+                                                  model=model,
+                                                  model_parameters=model.parameters())
     # load data
     train_dataloader, eval_dataloader = build_dataloaders(config, dataset, train_test_split=0.1)
 
     # train model
-    train_gpt3(config, model,train_dataloader, eval_dataloader)
+    train_gpt3(config, model, train_dataloader, eval_dataloader)
 
 
 if __name__ == '__main__':
