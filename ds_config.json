@@ -2,13 +2,15 @@
   "train_batch_size": 2,
   "gradient_accumulation_steps": 512,
   "optimizer": {
-    "type": "Lamb",
+    "type": "AdamW",
     "params": {
-      "lr": 2e-5,
-      "weight_decay": 0.01,
-      "bias_correction": false,
-      "max_coeff": 0.3,
-      "min_coeff": 0.01
+      "lr": 3e-4,
+      "betas": [
+        0.8,
+        0.999
+      ],
+      "eps": 1e-8,
+      "weight_decay": 3e-7
     }
   },
   "gradient_clipping": 1.0,
