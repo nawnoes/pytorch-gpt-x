@@ -1,6 +1,6 @@
 {
-  "train_batch_size": 2,
-  "gradient_accumulation_steps": 512,
+  "train_batch_size": 1024,
+  "gradient_accumulation_steps": 256,
   "optimizer": {
     "type": "AdamW",
     "params": {
@@ -17,5 +17,6 @@
   "fp16": {
     "enabled": true
   },
-  "zero_optimization": true
+  "zero_optimization": true,
+  "device": "cuda"
 }

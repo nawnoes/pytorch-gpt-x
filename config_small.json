@@ -1,0 +1,19 @@
+{
+  "vocab_path" : "./data/vocab-v1.txt",
+  "data_path" :"./data/train/" ,
+  "checkpoint_path" : "./checkpoints",
+  "log_dir": "./logs",
+  "model_name": "reformer-gpt3",
+  "dim": 1536,
+  "depth": 16,
+  "n_head": 96,
+  "max_seq_len" : 1024,
+  "batch_size" : 4,
+  "epochs" : 10,
+  "log_steps" : 1,
+  "ckpt_steps" : 10000,
+  "gradient_accumulation_steps" : 256,
+  "fp16": false,
+  "fp16_opt_level": "O2",
+  "device":"cuda"
+}
