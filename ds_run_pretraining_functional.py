@@ -12,7 +12,7 @@ from transformers import BertTokenizer
 
 import os
 import json
-import logging
+import logging채ㅜ
 from datetime import datetime
 from dataset import GPT3Dataset
 from arg import ModelConfig
