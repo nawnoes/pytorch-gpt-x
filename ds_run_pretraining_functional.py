@@ -12,7 +12,7 @@ from transformers import BertTokenizer
 
 import os
 import json
-import logging채ㅜ
+import logging
 from datetime import datetime
 from dataset import GPT3Dataset
 from arg import ModelConfig
@@ -85,9 +85,9 @@ def train_gpt3(config,
         for step, batch in pb:
             if step < start_step:
                 continue
-            inputs, labels, inputs_mask = batch
-            inputs, labels, inputs_mask = inputs.to(config.device), labels.to(config.device), inputs_mask.to(config.device)
-            lm_logit, loss = model(inputs,labels,input_mask=inputs_mask)
+            inputs, labels = batch
+            inputs, labels = inputs.to(config.device), labels.to(config.device)
+            lm_logit, loss = model(inputs,labels)
 
             step_perplexity += torch.exp(loss)
             origin_loss = loss.item()
@@ -138,11 +138,11 @@ def evaluate(config, model, dataloader):
                             total=len(dataloader),
                             bar_format='{l_bar}{bar:10}{r_bar}'):
 
-        inputs, labels, inputs_mask = batch
-        inputs, labels, inputs_mask = inputs.to(config.device), labels.to(config.device), inputs_mask.to(config.device)
+        inputs, labels = batch
+        inputs, labels = inputs.to(config.device), labels.to(config.device)
 
         with torch.no_grad():
-            lm_logit, loss = model(inputs, labels, input_mask=inputs_mask)
+            lm_logit, loss = model(inputs, labels)
 
         tmp_eval_loss = loss
         tmp_perplexity = torch.exp(tmp_eval_loss)

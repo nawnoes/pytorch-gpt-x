@@ -42,7 +42,6 @@ class GPT3Dataset(Dataset):
 
         inputs= inputs.squeeze()
         labels= labels.squeeze()
-        inputs_mask = inputs != 0
 
 
-        return inputs, labels, inputs_mask
+        return inputs, labels
