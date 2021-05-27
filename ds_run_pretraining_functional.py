@@ -102,7 +102,7 @@ def train_gpt3(config,
             global_steps += 1
 
             # if model.is_gradient_accumulation_boundary():
-            if global_steps % gradient_accumulation_steps == 0:
+            if global_steps % config.gradient_accumulation_steps == 0:
                 model.step()
 
             if global_steps % config.log_steps == 0:
