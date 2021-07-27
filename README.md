@@ -2,8 +2,15 @@
 My Own Pytorch GPT-X 
 
 ## Abstract
-Train GPT-3 175B model on V100(16GB Mem) using Reformer that is memory efficient model.
-Using Reformer, Transformer. 
+Train GPT-3 model on V100(16GB Mem) Using Reformer, Transformer. 
+
+## Attention
+
+## DeepSpeed
+
+## TODO
+- [-] sparse attention
+- [-] deep speed train
 
 ## Parameter For Few-shot
 The 175B parameter model is very large, but a large model is needed for Few-Shot Learning.
