@@ -4,6 +4,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import CrossEntropyLoss
 
+def sparse_attention():
+  pass
 def self_attention(query, key, value, mask=None, causal=False):
   key_transpose = torch.transpose(key,-2,-1)                      # (bath, head_num, d_k, token_)
   matmul_result = torch.matmul(query,key_transpose)                # MatMul(Q,K)
