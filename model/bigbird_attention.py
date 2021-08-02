@@ -10,7 +10,7 @@ import math
 import numpy as np
 
 def bigbird_block_sparse_attention(
-    self,
+    
     query_layer,
     key_layer,
     value_layer,
