@@ -26,9 +26,16 @@ class BlockSparseAttention(nn.Module):
         self.attention_head_size = int(config.dim/config.n_head)
         self.all_head_size = self.num_attention_heads * self.attention_head_size
 
-        self.query = nn.Linear(config.dim, config.)
+        self.query = nn.Linear(config.dim, config.dim)
+        self.key = nn.Linear(config.dim, config.dim)
+        self.value = nn.Linear(config.dim, config.dim)
+
+        self.dropout = nn.Dropout(config.dropout_prob)
+
     def transpose_for_scores(self, x):
-        pass
+        new_x_shape = x.size()[:-1] + (self.num_attention_heads, self.attentionhead_size)
+        x = x.view(*new_x_shape)
+        return x.permute(0,2,1,3)
     
     def forward(self):
         pass
