@@ -71,10 +71,10 @@ class BlockSparseAttention(nn.Module):
             batch_size,
             from_seq_len,
             to_seq_len,
-            seed = self.seed,
+            seed=self.seed,
             plan_from_length=None,
             plan_num_rand_blocks=None,
-            output_attention = output_attentions
+            output_attentions=output_attentions,
         )
 
         context_layer = context_layer.contiguous().view(batch_size, from_seq_len, -1)
@@ -114,8 +114,8 @@ class BlockSparseAttention(nn.Module):
                                 from_block_size,
                                 to_block_size,
                                 batch_size,
-                                from_seq_length,
-                                to_seq_length,
+                                from_seq_len,
+                                to_seq_len,
                                 seed=None,
                                 plan_from_length=None,
                                 plan_num_rand_blocks=None,
@@ -123,5 +123,38 @@ class BlockSparseAttention(nn.Module):
                                ):
         """
         block sparse attention as suggested in BigBird paper
+        ITC:
+            global token: 2 x block_size
+            window token: 3 x block_size
+            random token: num_rand_tokens x block_size
+        ETC:
+            global token: extra_globals_tokens + 2 x block_size
+            window token: 3 x block_size
+            random token: num_rand_tokens x block_size
 
+        *Note:
+            1) Currently ETC is not supported
+            2) Window size is fixed to 3 block & it can be changed only by changing `block_size`
+            3) Number of global blocks are fixed (2 block) & global tokens can be controlled only by `block_size`.
         """
+
+        # Shorthands
+        h = num_attention_heads
+        r = num_rand_blocks
+        rsqrt_d = 1/math.sqrt(attention_head_size)
+        b = batch_size
+        m = from_seq_len
+        n = to_seq_len
+        wm = from_block_size
+        wn = to_block_size
+
+        # Generate random attention and corresponding masks
+        np.random.seed(seed)
+        if from_seq_len in [1024, 3072, 4096]: # old plans used in paper
+            rand_attention = [self.]
+
+        return None
+
+    @staticmethod
+    def _block_rand_mask(from_seq_len, to_seq_len, from_block_size, to_block_size, num_rand_blocks, last_idx = -1):
+        assert(from_seq_len//from_block_size == to_seq_len // to_block_size), "Error the number of blocks needs to be same"
