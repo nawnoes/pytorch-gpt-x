@@ -30,12 +30,57 @@ class BlockSparseAttention(nn.Module):
         self.key = nn.Linear(config.dim, config.dim)
         self.value = nn.Linear(config.dim, config.dim)
 
-        self.dropout = nn.Dropout(config.dropout_prob)
-
     def transpose_for_scores(self, x):
-        new_x_shape = x.size()[:-1] + (self.num_attention_heads, self.attentionhead_size)
+        new_x_shape = x.size()[:-1] + (self.num_attention_heads, self.attention_head_size)
         x = x.view(*new_x_shape)
         return x.permute(0,2,1,3)
     
-    def forward(self):
-        pass
+    def forward(self,
+                hidden_states,
+                output_attentions = None,
+                band_mask=None,
+                from_mask=None,
+                to_mask=None,
+                from_blocked_mask=None,
+                to_blocked_mask=None
+                ):
+        # 현재는 decoder에는 지원되지 않음.
+        # 추가적인 개발 필요.
+        batch_size,seq_len, _ = hidden_states.size()
+        to_seq_len = from_seq_len = seq_len
+        from_block_size = to_block_size = self.block_size
+
+        query_layer = self.transpose_for_scores(self.query(hidden_states))
+        key_layer = self.transpose_for_scores(self.key(hidden_states))
+        value_layer = self.transpose_for_scores(self.value(hidden_states))
+
+        context_layer, attention_probs = self.block_sparse_attention(
+            query_layer,
+            key_layer,
+            value_layer,
+            band_mask,
+            from_mask,
+            to_mask,
+            from_blocked_mask,
+            to_blocked_mask,
+            self.num_attention_heads,
+            self.num_random_blocks,
+            self.attention_head_size,
+            from_block_size,
+            to_block_size,
+            batch_size,
+            from_seq_len,
+            to_seq_len,
+            seed = self.seed,
+            plan_from_length=None,
+            plan_num_rand_blocks=None,
+            output_attention = output_attentions
+        )
+
+        context_layer = context_layer.contiguous().view(batch_size, from_seq_len, -1)
+        outputs = (context_layer, attention_probs) if output_attentions else (context_layer,)
+
+        return outputs
+
+    @staticmethod
+    def
