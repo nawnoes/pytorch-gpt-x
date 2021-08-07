@@ -158,3 +158,38 @@ class BlockSparseAttention(nn.Module):
     @staticmethod
     def _block_rand_mask(from_seq_len, to_seq_len, from_block_size, to_block_size, num_rand_blocks, last_idx = -1):
         assert(from_seq_len//from_block_size == to_seq_len // to_block_size), "Error the number of blocks needs to be same"
+
+        rand_attention = np.zero((from_seq_len // from_block_size -2, num_rand_blocks), dtype=np.int32)
+        middle_seq = np.arange(1, to_seq_len // to_block_size -1, dtype=np.int32)
+
+        last = to_seq_len // to_block_size -1
+
+        if last_idx > (2 * to_block_size):
+            last = (last_idx // to_block_size) -1
+
+        r = num_rand_blocks # shorthand
+        for i in range(1, from_seq_len// from_block_size -1):
+            start = i - 2
+            end = i
+
+            if i == 1:
+                rand_attention[i -1, : ] = np.random.permutation(middle_seq[2:last])[:r]
+            elif i ==2:
+                rand_attention[i-1, :] = np.random.permutation(middle_seq[3:last])[:r]
+            elif i== from_seq_len // from_block_size -3:
+                rand_attention[i-2,:] = np.random.permutation(middle_seq[:last])[:r]
+            elif i==from_seq_len//from_block_size-2:
+                rand_attention[i-1,:] = np.random.permutation(middle_seq[:last])[:r]
+            else:
+                if start>last:
+                    start = last
+                    rand_attention[i-1,:]=np.random.permutation(middle_seq[:start])[:r]
+                elif (end +1) == last:
+                    rand_attention[i-1,:]=np.random.permutation(middle_seq[:start])[:r]
+                else:
+                    rand_attention[i-1,:]=np.random.permutation(
+                        np.concatenate((middle_seq[:start], middle_seq[end+1:last]))
+                    )[:r]
+        return rand_attention
+
+
