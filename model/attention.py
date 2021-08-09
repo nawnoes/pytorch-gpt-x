@@ -192,4 +192,44 @@ class BlockSparseAttention(nn.Module):
                     )[:r]
         return rand_attention
 
+    def _block_rand_mask_with_head(self,
+                                   from_seq_len,
+                                   to_seq_len,
+                                   from_block_size,
+                                   to_block_size,
+                                   num_heads,
+                                   plan_from_len,
+                                   plan_num_rand_blocks,
+                                   window_block_left=1,
+                                   window_block_right=1,
+                                   global_block_top=1,
+                                   global_block_bottom=1,
+                                   global_block_left=1,
+                                   global_block_right=1
+                                   ):
+        assert(from_seq_len//from_block_size == to_seq_len//to_block_size)," Error the number of blocks needsto be same"
+        assert from_seq_len in plan_from_len, "Error from sequence length not in plan"
+
+        # Total number of blocks in the mask
+        num_blocks = from_seq_len // from_block_size
+
+        # Number of blocks per plan
+        plan_block_len = np.array(plan_from_len)//from_block_size
+
+        # Till when to follow plan
+        max_plan_idx = plan_from_len.index(from_seq_len)
+
+        # Random Attention adjajency list
+        rand_attention = [
+            np.zeors((num_blocks, np.sum(plan_num_rand_blocks[:max_plan_idx +1])), dtype=np.int32)
+            for i in range(num_heads)
+        ]
+
+        # We will go iteratively over the plan blocks and pick random number of attention blocks from the legally allowed blocks
+        for plan_idx in range(max_plan_idx+1):
+            rand_r_count=0
+            if plan_idx>0:
+                # set the row for all from_blocks starting from 0 to plan_block_len[plan_idx-1]
+                # column indx start from plan_block_len[plan_idx-1] and ends at plan_block_len[plan_idx]
+
 
