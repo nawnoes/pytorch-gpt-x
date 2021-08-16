@@ -16,7 +16,8 @@ Train GPT-3 model on V100(16GB Mem) Using Reformer, Transformer.
 - [ ] Shifted Tokens
 - [ ] Macaron architectures
 - [ ] sparse attention
-- [ ] deep speed train
+- [ ] Deepspeed train on single GPU
+- [ ] Deepspeed parallel trainig on 2 V100 GPU with 16GB Memory
 
 ## Parameter For Few-shot
 The 175B parameter model is very large, but a large model is needed for Few-Shot Learning.
@@ -33,3 +34,5 @@ So this repository try to use DeepSpeed for training extremely big model.
 
 # References
 - [lucidrains/x-transformers](https://github.com/lucidrains/x-transformers)
+- [DeepSpeed](https://www.deepspeed.ai/)
+- [DeepSpeed Core API Doc](https://deepspeed.readthedocs.io/en/latest/index.html)

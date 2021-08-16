@@ -4,11 +4,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import CrossEntropyLoss
 
-
-
-def sparse_attention():
-  pass
-
 def self_attention(query, key, value, mask=None, causal=False):
   key_transpose = torch.transpose(key,-2,-1)                      # (bath, head_num, d_k, token_)
   matmul_result = torch.matmul(query,key_transpose)                # MatMul(Q,K)
@@ -74,14 +69,19 @@ class MultiHeadAttention(nn.Module):
 
 
 class FeedForward(nn.Module):
-  def __init__(self,d_model, dropout = 0.1):
+  def __init__(self,d_model, dropout = 0.1, activation='gelu'):
     super(FeedForward,self).__init__()
     self.w_1 = nn.Linear(d_model, d_model*4)
     self.w_2 = nn.Linear(d_model*4, d_model)
     self.dropout = nn.Dropout(p=dropout)
+    
+    if activation =='gelu':
+        self.activation = F.gelu
+    elif activation == 'relu':
+        self.activation = F.relu()
 
   def forward(self, x):
-    return self.w_2(self.dropout(F.relu(self.w_1(x))))
+    return self.w_2(self.dropout(self.activation(self.w_1(x))))
 
 class LayerNorm(nn.Module):
   def __init__(self, features, eps=1e-6):
@@ -129,7 +129,20 @@ class PositionalEmbedding(nn.Module):
   def forward(self, x):
     t = torch.arange(x.shape[1], device=x.device)
     return self.embedding(t)
+  
+  
+class ReZero(nn.Module):
+  def __init__(self, dropout):
+      super().__init__()
+      self.g = nn.Parameter(torch.zeros(1))
+      self.dropout = nn.Dropout(dropout)
+      
+  def forward(self, x, sublayer):
+      x = sublayer(x)
+      x = x * self.g
+      return x + self.dropout(x)
 
+  
 class TransformerGPTX(nn.Module):
   def __init__(self,
                vocab_size,
