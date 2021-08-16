@@ -26,7 +26,7 @@ def self_attention(query, key, value, mask=None, causal=False):
   return result, softmax_attention_score
 
 class MultiHeadAttention(nn.Module):
-  def __init__(self, head_num =8 , d_model = 512,dropout = 0.1, causal=False):
+  def __init__(self, head_num =8 , d_model = 512,dropout = 0.1, causal=False, explicit_sparse_attn_topk=None):
     super(MultiHeadAttention,self).__init__()
 
     # print(d_model % head_num)
@@ -36,6 +36,7 @@ class MultiHeadAttention(nn.Module):
     self.d_model = d_model
     self.d_k = self.d_v = d_model // head_num
     self.causal = causal
+    self.explicit_topk = explicit_sparse_attn_topk
 
     self.w_q = nn.Linear(d_model,d_model)
     self.w_k = nn.Linear(d_model,d_model)
@@ -105,13 +106,21 @@ class ResidualConnection(nn.Module):
     return x + self.dropout((sublayer(self.norm(x))))
 
 class Decoder(nn.Module):
-  def __init__(self, d_model,head_num, dropout):
+  def __init__(self, d_model,head_num, dropout, rezero_use = True, explicit_sparse_attn_topk=8):
+    """
+    d_model: model hidden dimension
+    head_num: number of attention head
+    dropout: dropout probablity
+    rezero_use = True : ReZero use or not
+    explicit_sparse_attn_topk=8: Explicit sparse attention top-k. The origin paper suggest topk = 8. keep only the top 8 values before attention (softmax)
+    """
     super(Decoder,self).__init__()
-    self.masked_multi_head_attention = MultiHeadAttention(d_model= d_model, head_num= head_num, causal=True)
-    self.residual_1 = ResidualConnection(d_model,dropout=dropout)
+    
+    self.masked_multi_head_attention = MultiHeadAttention(d_model= d_model, head_num= head_num, causal=True, explicit_sparse_attn_topk=8)
+    self.residual_1 = ReZero(dropout) if rezero_use else ResidualConnection(d_model,dropout=dropout)
 
     self.feed_forward = FeedForward(d_model)
-    self.residual_2 = ResidualConnection(d_model, dropout=dropout)
+    self.residual_2 = ReZero(dropout) if rezero_use else ResidualConnection(d_model,dropout=dropout)
 
 
   def forward(self, target):

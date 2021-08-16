@@ -4,18 +4,18 @@ My Own Pytorch GPT-X
 ## Abstract
 Train GPT-3 model on V100(16GB Mem) Using Reformer, Transformer. 
 
-## Attention
-
-## DeepSpeed
-
+## Model
+### Transformer
+## Train
+### DeepSpeed
 ## TODO
 
-- [ ] ReZero
+- [x] ~~ReZero~~
 - [ ] Performer
 - [ ] Residual Attention
 - [ ] Shifted Tokens
 - [ ] Macaron architectures
-- [ ] sparse attention
+- [ ] Explicit Sparse Transformer
 - [ ] Deepspeed train on single GPU
 - [ ] Deepspeed parallel trainig on 2 V100 GPU with 16GB Memory
 
@@ -33,6 +33,12 @@ So this repository try to use DeepSpeed for training extremely big model.
 |   GPT-3 2.7B    |  2.7B   |    32   |  25560  |    32   |   80   |     1M     |   1.6 x 10^-4 |
 
 # References
+### Transformer
 - [lucidrains/x-transformers](https://github.com/lucidrains/x-transformers)
+  
+### DeepSpeed
 - [DeepSpeed](https://www.deepspeed.ai/)
 - [DeepSpeed Core API Doc](https://deepspeed.readthedocs.io/en/latest/index.html)
+
+### ReZero
+- [/majumderb/rezero](https://github.com/majumderb/rezero/blob/master/rezero/transformer/rztx.py)
