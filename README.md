@@ -6,17 +6,16 @@ Train GPT-3 model on V100(16GB Mem) Using Reformer, Transformer.
 
 ## 2. Model
 ### Transformer
-#### Original Transformer
-#### Additional Module
-##### ① Rezero
+### Additional Module
+#### ① Rezero
 Rezero Is All You Need [link](https://arxiv.org/abs/2003.04887)
 
 ![](./images/rezero.png)
-##### ② Explicit Sparse Transformer
+#### ② Explicit Sparse Transformer
 Explicit Sparse Transformer: Concentrated Attention Through Explicit Selection [link](https://arxiv.org/abs/1912.11637)
 
 ![](./images/explicit-sparse-attention.png)
-##### ③ RealFormer, Residual Attention
+#### ③ RealFormer, Residual Attention
 RealFormer [link](https://arxiv.org/abs/2012.11747)
 
 ![](./images/residual_attn.png)
