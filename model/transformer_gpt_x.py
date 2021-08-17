@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import CrossEntropyLoss
 
-def self_attention(query, key, value, mask=None, causal=False):
+def self_attention(query, key, value, mask=None, causal=False, explicit_topk=None):
   key_transpose = torch.transpose(key,-2,-1)                      # (bath, head_num, d_k, token_)
   matmul_result = torch.matmul(query,key_transpose)                # MatMul(Q,K)
   d_k = query.size()[-1]
@@ -13,12 +13,21 @@ def self_attention(query, key, value, mask=None, causal=False):
   if mask is not None:
     attention_score = attention_score.masked_fill(mask == 0, -1e4)
 
+  # is Decoder
   if causal:
     query_len = query.size()[2]
     # causal_mask = torch.tril(torch.ones(query_len, query_len))
     # attention_score = attention_score.masked_fill_(causal_mask == 0, -1e4)
     i, j = torch.triu_indices(query_len, query_len, 1)
     attention_score[:, :, i, j] = -1e4
+
+  # Explicit Sparse Transformer
+  if explicit_topk and explicit_topk< attention_score.shape[-1]:
+    top, _ = attention_score.topk(explicit_topk, dim=-1) # return value, indices
+    vk = top[...,-1].unsqueeze(-1).expand_as(attention_score)
+    mask = attention_score < vk
+    attention_score.masked_fill_(mask,-1e4)
+    del mask
 
   softmax_attention_score = F.softmax(attention_score,dim=-1)  # 어텐션 값
   result = torch.matmul(softmax_attention_score,value)
@@ -57,12 +66,7 @@ class MultiHeadAttention(nn.Module):
     key = self.w_k(key).view(batche_num, -1, self.head_num, self.d_k).transpose(1, 2)
     value = self.w_v(value).view(batche_num, -1, self.head_num, self.d_k).transpose(1, 2)
 
-    attention_result, attention_score = self.self_attention(query, key, value, mask, self.causal)
-
-    # 원래의 모양으로 다시 변형해준다.
-    # torch.continuos는 다음행과 열로 이동하기 위한 stride가 변형되어
-    # 메모리 연속적으로 바꿔야 한다!
-    # 참고 문서: https://discuss.pytorch.org/t/contigious-vs-non-contigious-tensor/30107/2
+    attention_result, attention_score = self.self_attention(query, key, value, mask, self.causal, self.explicit_topk)
     attention_result = attention_result.transpose(1,2).contiguous().view(batche_num, -1, self.head_num * self.d_k)
 
 
