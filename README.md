@@ -15,7 +15,13 @@ Rezero Is All You Need [link](https://arxiv.org/abs/2003.04887)
 Explicit Sparse Transformer: Concentrated Attention Through Explicit Selection [link](https://arxiv.org/abs/1912.11637)
 
 ![](./images/explicit-sparse-attention.png)
-#### ③ RealFormer, Residual Attention
+#### ③ Macaron Architecture
+Understanding and Improving Transformer
+From a Multi-Particle Dynamic System Point of View [link](https://arxiv.org/pdf/1906.02762.pdf)
+
+![](./images/macaron.png
+)
+#### ④ RealFormer, Residual Attention
 RealFormer [link](https://arxiv.org/abs/2012.11747)
 
 ![](./images/residual_attn.png)
