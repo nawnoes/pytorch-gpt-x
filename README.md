@@ -27,7 +27,7 @@ RealFormer [link](https://arxiv.org/abs/2012.11747)
 - [ ] Performer
 - [ ] Residual Attention
 - [ ] Shifted Tokens
-- [ ] Macaron architectures
+- [x] ~~Macaron architectures~~
 - [x] ~~Explicit Sparse Transformer~~
 - [ ] Deepspeed train on single GPU
 - [ ] Deepspeed parallel trainig on 2 V100 GPU with 16GB Memory
@@ -58,3 +58,6 @@ So this repository try to use DeepSpeed for training extremely big model.
 
 ### Explicit Sparse Transformer
 - [x-transformer: explicit_sparse_transformer](https://github.com/lucidrains/x-transformers/blob/2badf9261cda03e1497b5db62274b045cd827086/x_transformers/x_transformers.py#L469)
+
+### Macaron Architecrue
+- [Understanding and Improving Transformer From a Multi-Particle Dynamic System Point of View](https://arxiv.org/pdf/1906.02762.pdf)

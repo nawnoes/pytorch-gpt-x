@@ -110,7 +110,7 @@ class ResidualConnection(nn.Module):
     return x + self.dropout((sublayer(self.norm(x))))
 
 class Decoder(nn.Module):
-  def __init__(self, d_model,head_num, dropout, rezero_use = True, explicit_sparse_attn_topk=8):
+  def __init__(self, d_model,head_num, dropout, rezero_use = True, explicit_sparse_attn_topk=8, macaron_net_use = False):
     """
     d_model: model hidden dimension
     head_num: number of attention head
@@ -119,8 +119,14 @@ class Decoder(nn.Module):
     explicit_sparse_attn_topk=8: Explicit sparse attention top-k. The origin paper suggest topk = 8. keep only the top 8 values before attention (softmax)
     """
     super(Decoder,self).__init__()
-    
-    self.masked_multi_head_attention = MultiHeadAttention(d_model= d_model, head_num= head_num, causal=True, explicit_sparse_attn_topk=8)
+
+    # Macaron Architecture
+    self.macaron = macaron_net_use
+
+    if self.macaron:
+      self.macaron_net = nn.Linear(d_model, d_model)
+
+    self.masked_multi_head_attention = MultiHeadAttention(d_model= d_model, head_num= head_num, causal=True, explicit_sparse_attn_topk=explicit_sparse_attn_topk)
     self.residual_1 = ReZero(dropout) if rezero_use else ResidualConnection(d_model,dropout=dropout)
 
     self.feed_forward = FeedForward(d_model)
@@ -128,11 +134,12 @@ class Decoder(nn.Module):
 
 
   def forward(self, target):
-    # target, x, target_mask, input_mask
-    x = self.residual_1(target, lambda x: self.masked_multi_head_attention(x, x, x))
-    x = self.residual_2(x, lambda x: self.feed_forward(x))
+    if self.macaron:
+      target = self.macaron_net(target)
+    target = self.residual_1(target, lambda x: self.masked_multi_head_attention(x, x, x))
+    target = self.residual_2(target, lambda x: self.feed_forward(x))
 
-    return x
+    return target
 
 class PositionalEmbedding(nn.Module):
   def __init__(self, dim, max_seq_len):
