@@ -52,18 +52,23 @@ So this repository try to use DeepSpeed for training extremely big model.
 |   GPT-3 2.7B    |  2.7B   |    32   |  25560  |    32   |   80   |     1M     |   1.6 x 10^-4 |
 
 # References
-### Transformer
+**Transformer**
+
 - [lucidrains/x-transformers](https://github.com/lucidrains/x-transformers)
   
-### DeepSpeed
+**DeepSpeed**
+
 - [DeepSpeed](https://www.deepspeed.ai/)
 - [DeepSpeed Core API Doc](https://deepspeed.readthedocs.io/en/latest/index.html)
 
-### ReZero
+**ReZero**
+
 - [/majumderb/rezero](https://github.com/majumderb/rezero/blob/master/rezero/transformer/rztx.py)
 
-### Explicit Sparse Transformer
+**Explicit Sparse Transformer**
+
 - [x-transformer: explicit_sparse_transformer](https://github.com/lucidrains/x-transformers/blob/2badf9261cda03e1497b5db62274b045cd827086/x_transformers/x_transformers.py#L469)
 
-### Macaron Architecrue
+**Macaron Architecrue**
+
 - [Understanding and Improving Transformer From a Multi-Particle Dynamic System Point of View](https://arxiv.org/pdf/1906.02762.pdf)
