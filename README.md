@@ -31,8 +31,7 @@ RealFormer [link](https://arxiv.org/abs/2012.11747)
 
 - [x] ~~ReZero~~
 - [ ] Performer
-- [ ] Residual Attention
-- [ ] Shifted Tokens
+- [ ] RealFormer, Residual Attention
 - [x] ~~Macaron architectures~~
 - [x] ~~Explicit Sparse Transformer~~
 - [ ] Deepspeed train on single GPU
