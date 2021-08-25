@@ -33,6 +33,7 @@ RealFormer [link](https://arxiv.org/abs/2012.11747)
 - [ ] Performer
 - [ ] RealFormer, Residual Attention
 - [x] ~~Macaron architectures~~
+- [ ] Macaron architectures - layer Scale 0.5
 - [x] ~~Explicit Sparse Transformer~~
 - [ ] Deepspeed train on single GPU
 - [ ] Deepspeed parallel trainig on 2 V100 GPU with 16GB Memory

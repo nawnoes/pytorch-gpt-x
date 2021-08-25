@@ -72,6 +72,15 @@ class MultiHeadAttention(nn.Module):
 
     return self.w_o(attention_result)
 
+class Scale(nn.Module):
+  def __init__(self, scale_value, fn):
+    super().__init__()
+    self.scale_value = scale_value
+    self.fn = fn
+  def forward(self, input):
+    x = self.fn(input)
+    return x * self.scale_value
+
 
 class FeedForward(nn.Module):
   def __init__(self,d_model, dropout = 0.1, activation='gelu'):
@@ -83,7 +92,7 @@ class FeedForward(nn.Module):
     if activation =='gelu':
         self.activation = F.gelu
     elif activation == 'relu':
-        self.activation = F.relu()
+        self.activation = F.relu
 
   def forward(self, x):
     return self.w_2(self.dropout(self.activation(self.w_1(x))))
@@ -124,12 +133,14 @@ class Decoder(nn.Module):
     self.macaron = macaron_net_use
 
     if self.macaron:
-      self.macaron_net = nn.Linear(d_model, d_model)
+      self.macaron_net = Scale(0.5,FeedForward(d_model, d_model))
 
     self.masked_multi_head_attention = MultiHeadAttention(d_model= d_model, head_num= head_num, causal=True, explicit_sparse_attn_topk=explicit_sparse_attn_topk)
     self.residual_1 = ReZero(dropout) if rezero_use else ResidualConnection(d_model,dropout=dropout)
 
     self.feed_forward = FeedForward(d_model)
+    if self.macaron:
+      self.feed_forward = Scale(0.5, self.feed_forward)
     self.residual_2 = ReZero(dropout) if rezero_use else ResidualConnection(d_model,dropout=dropout)
 
 
