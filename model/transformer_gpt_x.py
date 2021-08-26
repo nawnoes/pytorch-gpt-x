@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import CrossEntropyLoss
 
-def self_attention(query, key, value, mask=None, causal=False, explicit_topk=None):
+def self_attention(query, key, value, mask=None, causal=False, explicit_topk=None, prev_attn=None):
   key_transpose = torch.transpose(key,-2,-1)                      # (bath, head_num, d_k, token_)
   matmul_result = torch.matmul(query,key_transpose)                # MatMul(Q,K)
   d_k = query.size()[-1]
