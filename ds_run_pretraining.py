@@ -17,7 +17,7 @@ import logging
 from datetime import datetime
 from dataset import GPT3Dataset
 from arg import ModelConfig
-from model.reformer_gpt_x import ReformerGPT3
+from model.reformer_gpt import ReformerGPT3
 from ds_util import get_argument_parser
 import deepspeed
 

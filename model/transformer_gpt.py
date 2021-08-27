@@ -10,6 +10,11 @@ def self_attention(query, key, value, mask=None, causal=False, explicit_topk=Non
   d_k = query.size()[-1]
   attention_score = matmul_result/math.sqrt(d_k)                  # Scale
 
+  pre_softmax_attn = None
+  if prev_attn:
+    attention_score = attention_score + prev_attn
+    pre_softmax_attn = attention_score
+
   if mask is not None:
     attention_score = attention_score.masked_fill(mask == 0, -1e4)
 
@@ -32,10 +37,10 @@ def self_attention(query, key, value, mask=None, causal=False, explicit_topk=Non
   softmax_attention_score = F.softmax(attention_score,dim=-1)  # 어텐션 값
   result = torch.matmul(softmax_attention_score,value)
 
-  return result, softmax_attention_score
+  return result, softmax_attention_score, pre_softmax_attn
 
 class MultiHeadAttention(nn.Module):
-  def __init__(self, head_num =8 , d_model = 512,dropout = 0.1, causal=False, explicit_sparse_attn_topk=None):
+  def __init__(self, head_num =8 , d_model = 512,dropout = 0.1, causal=False, explicit_sparse_attn_topk=None, residual_attn=False):
     super(MultiHeadAttention,self).__init__()
 
     # print(d_model % head_num)
@@ -46,6 +51,7 @@ class MultiHeadAttention(nn.Module):
     self.d_k = self.d_v = d_model // head_num
     self.causal = causal
     self.explicit_topk = explicit_sparse_attn_topk
+    self.residual_attn = residual_attn # Residual Attention
 
     self.w_q = nn.Linear(d_model,d_model)
     self.w_k = nn.Linear(d_model,d_model)
@@ -55,7 +61,7 @@ class MultiHeadAttention(nn.Module):
     self.self_attention = self_attention
     self.dropout = nn.Dropout(p=dropout)
 
-  def forward(self, query, key, value, mask = None):
+  def forward(self, query, key, value, mask = None, prev_attn=None):
     if mask is not None:
       # Same mask applied to all h heads.
       mask = mask.unsqueeze(1)
@@ -66,11 +72,11 @@ class MultiHeadAttention(nn.Module):
     key = self.w_k(key).view(batche_num, -1, self.head_num, self.d_k).transpose(1, 2)
     value = self.w_v(value).view(batche_num, -1, self.head_num, self.d_k).transpose(1, 2)
 
-    attention_result, attention_score = self.self_attention(query, key, value, mask, self.causal, self.explicit_topk)
+    attention_result, attention_score, pre_softmax_attn = self.self_attention(query, key, value, mask, self.causal, self.explicit_topk, prev_attn)
     attention_result = attention_result.transpose(1,2).contiguous().view(batche_num, -1, self.head_num * self.d_k)
 
 
-    return self.w_o(attention_result)
+    return self.w_o(attention_result), pre_softmax_attn
 
 class Scale(nn.Module):
   def __init__(self, scale_value, fn):
