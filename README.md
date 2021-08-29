@@ -35,6 +35,7 @@ RealFormer [link](https://arxiv.org/abs/2012.11747)
 - [x] ~~Macaron architectures~~
 - [x] ~~Macaron architectures - layer Scale 0.5~~
 - [x] ~~Explicit Sparse Transformer~~
+- [ ] torch lightning
 - [ ] Deepspeed train on single GPU
 - [ ] Deepspeed parallel trainig on 2 V100 GPU with 16GB Memory
 
