@@ -124,8 +124,16 @@ class ResidualConnection(nn.Module):
   def forward(self, x, sublayer):
     return x + self.dropout((sublayer(self.norm(x))))
 
+class Residual(nn.Module):
+  def __init__(self, dropout):
+    super(Residual,self).__init__()
+    self.dropout = nn.Dropout(dropout)
+
+  def forward(self, x, sublayer_output):
+    return x + self.dropout(sublayer_output)
+
 class Decoder(nn.Module):
-  def __init__(self, d_model,head_num, dropout, rezero_use = True, explicit_sparse_attn_topk=8, macaron_net_use = False):
+  def __init__(self, d_model,head_num, dropout, rezero_use = True, explicit_sparse_attn_topk=8, macaron_net_use = False, residual_attn=False):
     """
     d_model: model hidden dimension
     head_num: number of attention head
@@ -141,13 +149,13 @@ class Decoder(nn.Module):
     if self.macaron:
       self.macaron_net = Scale(0.5,FeedForward(d_model, d_model))
 
-    self.masked_multi_head_attention = MultiHeadAttention(d_model= d_model, head_num= head_num, causal=True, explicit_sparse_attn_topk=explicit_sparse_attn_topk)
-    self.residual_1 = ReZero(dropout) if rezero_use else ResidualConnection(d_model,dropout=dropout)
+    self.masked_multi_head_attention = MultiHeadAttention(d_model= d_model, head_num= head_num, causal=True, explicit_sparse_attn_topk=explicit_sparse_attn_topk, residual_attn=residual_attn)
+    self.residual_1 = ReZero(dropout) if rezero_use else Residual(dropout=dropout)
 
     self.feed_forward = FeedForward(d_model)
     if self.macaron:
       self.feed_forward = Scale(0.5, self.feed_forward)
-    self.residual_2 = ReZero(dropout) if rezero_use else ResidualConnection(d_model,dropout=dropout)
+    self.residual_2 = ReZero(dropout) if rezero_use else Residual(dropout=dropout)
 
 
   def forward(self, target):
