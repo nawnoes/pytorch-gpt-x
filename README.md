@@ -29,7 +29,6 @@ RealFormer [link](https://arxiv.org/abs/2012.11747)
 ## TODO
 
 - [x] ~~ReZero~~
-- [ ] Performer
 - [ ] RealFormer, Residual Attention
 - [x] ~~Macaron architectures~~
 - [x] ~~Macaron architectures - layer Scale 0.5~~
