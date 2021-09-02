@@ -19,8 +19,7 @@ Explicit Sparse Transformer: Concentrated Attention Through Explicit Selection [
 Understanding and Improving Transformer
 From a Multi-Particle Dynamic System Point of View [link](https://arxiv.org/pdf/1906.02762.pdf)
 
-![](./images/macaron.png
-)
+![](./images/macaron.png)
 #### ④ RealFormer, Residual Attention
 RealFormer [link](https://arxiv.org/abs/2012.11747)
 
