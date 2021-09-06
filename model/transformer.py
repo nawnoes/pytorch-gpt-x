@@ -158,13 +158,18 @@ class Decoder(nn.Module):
     self.residual_2 = ReZero(dropout) if rezero_use else Residual(dropout=dropout)
 
 
-  def forward(self, target):
+  def forward(self, x, prev_attn=None):
     if self.macaron:
-      target = self.macaron_net(target)
-    target = self.residual_1(target, lambda x: self.masked_multi_head_attention(x, x, x))
-    target = self.residual_2(target, lambda x: self.feed_forward(x))
+      x = self.macaron_net(x)
+    # target = self.residual_1(target, lambda x: self.masked_multi_head_attention(x, x, x))
+    # target = self.residual_2(target, lambda x: self.feed_forward(x))
 
-    return target
+    x, pre_softmax_attn = self.masked_multi_head_attention(query=x, key=x, value=x, prev_attn=prev_attn)
+    x = self.residual_1(x)
+    x = self.feed_forward(x)
+    x = self.residual_2(x)
+
+    return x, pre_softmax_attn
 
 class PositionalEmbedding(nn.Module):
   def __init__(self, dim, max_seq_len):
@@ -212,8 +217,9 @@ class TransformerGPTX(nn.Module):
     x = self.token_emb(input_ids)
     x = x + self.position_emb(input_ids).type_as(x)
 
+    pre_attn =None
     for decoder in self.decoders:
-      x = decoder(x)
+      x, pre_attn = decoder(x, pre_attn)
 
     lm_logits = self.lm_head(x)
 
