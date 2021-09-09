@@ -166,6 +166,7 @@ class Decoder(nn.Module):
 
     x, pre_softmax_attn = self.masked_multi_head_attention(query=x, key=x, value=x, prev_attn=prev_attn)
     x = self.residual_1(x)
+
     x = self.feed_forward(x)
     x = self.residual_2(x)
 

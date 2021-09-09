@@ -29,7 +29,7 @@ RealFormer [link](https://arxiv.org/abs/2012.11747)
 ## TODO
 
 - [x] ~~ReZero~~
-- [ ] RealFormer, Residual Attention
+- [x] ~~RealFormer, Residual Attention~~
 - [x] ~~Macaron architectures~~
 - [x] ~~Macaron architectures - layer Scale 0.5~~
 - [x] ~~Explicit Sparse Transformer~~
