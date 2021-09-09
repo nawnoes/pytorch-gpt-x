@@ -71,3 +71,6 @@ So this repository try to use DeepSpeed for training extremely big model.
 **Macaron Architecrue**
 
 - [Understanding and Improving Transformer From a Multi-Particle Dynamic System Point of View](https://arxiv.org/pdf/1906.02762.pdf)
+
+**RealFormer Residual Attention**
+- [cloneofsimo/RealFormer-pytorch](https://github.com/cloneofsimo/RealFormer-pytorch/blob/main/models.py)
