@@ -3,6 +3,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import CrossEntropyLoss
+import pytorch_lightning as pl
+
 
 def self_attention(query, key, value, mask=None, causal=False, explicit_topk=None, prev_attn=None):
   key_transpose = torch.transpose(key,-2,-1)                      # (bath, head_num, d_k, token_)
@@ -236,6 +238,14 @@ class TransformerGPTX(nn.Module):
 
     return lm_logits, loss
 
+class GPTX(pl.LightningModule):
+  def __init__(self):
+    super().__init__()
+  def forward(self, input_ids, labels):
+    pass
+
+  def configure_optimizers(self):
+    optimizer =
 
 if __name__=="__main__":
   pass

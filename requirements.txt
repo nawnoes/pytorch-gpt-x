@@ -3,3 +3,4 @@ transformers
 reformer_pytorch
 fairseq
 deepspeed
+pytorch_lightning
