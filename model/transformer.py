@@ -1,9 +1,11 @@
 import math
 import torch
+from torch.optim import Adam
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import CrossEntropyLoss
 import pytorch_lightning as pl
+from transformers import AdamW
 
 
 def self_attention(query, key, value, mask=None, causal=False, explicit_topk=None, prev_attn=None):
@@ -243,9 +245,15 @@ class GPTX(pl.LightningModule):
     super().__init__()
   def forward(self, input_ids, labels):
     pass
-
   def configure_optimizers(self):
-    optimizer =
+    optimizer = AdamW(self.parameters(), lr=5e-4, eps=1e-8)
+    return optimizer
+  def training_step(self, train_batch, batch_idx):
+    pass
+  def validation_step(self, val_batch, batch_idx):
+    pass
+  def test_step(self, test_batch, batch_idx):
+    pass
 
 if __name__=="__main__":
   pass
