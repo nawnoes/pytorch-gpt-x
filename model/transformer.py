@@ -241,15 +241,53 @@ class TransformerGPTX(nn.Module):
     return lm_logits, loss
 
 class GPTX(pl.LightningModule):
-  def __init__(self):
-    super().__init__()
+  def __init__(self,
+               vocab_size,
+               dim,
+               depth,
+               max_seq_len,
+               head_num,
+               dropout=0.1):
+    super(GPTX, self).__init__()
+
+    # Embedding
+    self.token_emb = nn.Embedding(vocab_size, dim)
+    self.position_emb = PositionalEmbedding(dim, max_seq_len)
+
+    # Decoders
+    self.decoders = nn.ModuleList([Decoder(d_model=dim, head_num=head_num, dropout=dropout) for _ in range(depth)])
+
+    self.norm = nn.LayerNorm(dim)
+    self.lm_head = nn.Linear(dim, vocab_size, bias=False)
+
   def forward(self, input_ids, labels):
-    pass
+    x = self.token_emb(input_ids)
+    x = x + self.position_emb(input_ids).type_as(x)
+
+    pre_attn = None
+    for decoder in self.decoders:
+      x, pre_attn = decoder(x, pre_attn)
+
+    lm_logits = self.lm_head(x)
+
+    loss = None
+    if labels is not None:
+      # Shift so that tokens < n predict n
+      shift_logits = lm_logits[..., :-1, :].contiguous()
+      shift_labels = labels[..., 1:].contiguous()
+
+      # Flatten the tokens
+      loss_fct = CrossEntropyLoss()
+      loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+
+    return lm_logits, loss
   def configure_optimizers(self):
     optimizer = AdamW(self.parameters(), lr=5e-4, eps=1e-8)
     return optimizer
   def training_step(self, train_batch, batch_idx):
-    pass
+
+
+    return
   def validation_step(self, val_batch, batch_idx):
     pass
   def test_step(self, test_batch, batch_idx):
