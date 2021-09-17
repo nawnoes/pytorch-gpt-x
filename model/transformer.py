@@ -281,17 +281,45 @@ class GPTX(pl.LightningModule):
       loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
 
     return lm_logits, loss
+
   def configure_optimizers(self):
     optimizer = AdamW(self.parameters(), lr=5e-4, eps=1e-8)
     return optimizer
+
   def training_step(self, train_batch, batch_idx):
+    input_ids, labels = train_batch
+    lm_logits, loss = self.forward(input_ids, labels)
+    perplexity = torch.exp(loss)
 
+    self.log('train_loss', loss, prog_bar=True)
+    self.log('train_ppl', perplexity, prog_bar=True)
 
-    return
+    tb_logs = {'train_log':loss, 'train_ppl':perplexity}
+
+    return {'loss':loss, 'log': tb_logs}
+
   def validation_step(self, val_batch, batch_idx):
-    pass
-  def test_step(self, test_batch, batch_idx):
-    pass
+    input_ids, labels = val_batch
+    lm_logits, loss = self.forward(input_ids, labels)
+    perplexity = torch.exp(loss)
 
-if __name__=="__main__":
+    self.log('val_loss', loss, prog_bar=True)
+    self.log('val_ppl', perplexity, prog_bar=True)
+
+    tb_logs = {'val_log': loss, 'val_ppl': perplexity}
+
+    return {'loss': loss, 'log': tb_logs}
+
+  def validation_epoch_end(self, outputs):
+    loss, avg_ppl = 0, 0
+    avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
+    for x in outputs:
+      avg_ppl += x['log']['val_ppl']
+    avg_ppl/len(outputs)
+    logs = {'avg_val_loss':avg_loss, 'avg_val_ppl':avg_ppl}
+
+    return {'avg_val_loss': avg_loss, 'avg_val_ppl': avg_ppl, 'log': logs, 'progress_bar': logs}
+
+
+if __name__=='__main__':
   pass
