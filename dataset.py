@@ -6,6 +6,8 @@ import logging
 import torch
 from tqdm import tqdm
 from torch.utils.data import Dataset
+from arg import ModelConfig
+from transformers import BertTokenizer
 
 class GPT3Dataset(Dataset):
     def __init__(self, tokenizer, max_len, dir_path):
@@ -62,11 +64,22 @@ class GPTXDataset(Dataset):
         for file_name in file_progress_bar:
             path = f'{dir_path}/{file_name}'
             data_file =  open(path, 'r',encoding='utf-8')
+
+            tmp_line = [self.tokenizer.cls_token_id]
             for line in tqdm(data_file,
                              desc='Data load for pretraining',
                              position=1, leave=True):
                 line = line[:-1]
-                self.docs.append(line)
+                line_ids = self.tokenizer.encode(line, add_special_tokens=False, pad_to_max_length=False,
+                                                 max_length=max_len - 2, truncation=True)
+                line_ids += [self.tokenizer.sep_token_id]
+
+                if len(tmp_line) + len(line_ids) < self.max_len:
+                    tmp_line += line_ids
+                else:
+                    self.docs.append(tmp_line)
+                    tmp_line = [self.tokenizer.cls_token_id]
+
         logging.info('Complete data load')
 
     def _tokenize_input_ids(self, input_ids: list, add_special_tokens:bool = False, pad_to_max_length: bool = True):
@@ -84,3 +97,13 @@ class GPTXDataset(Dataset):
 
 
         return inputs, labels
+
+if __name__=='__main__':
+    data_path = './data/train/sample.txt'
+    config_path = './config.json'
+    config = ModelConfig(config_path=config_path).get_config()
+
+    # Tokenizer
+    tokenizer = BertTokenizer(vocab_file=config.vocab_path, do_lower_case=False)
+    dataset = GPTXDataset(tokenizer,config.max_seq_len, config.data_path)
+    print(dataset)
