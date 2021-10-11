@@ -26,4 +26,16 @@ if __name__=='__main__':
         depth=config.depth,
         heads=config.n_head,
         max_seq_len=config.max_seq_len, # AxialPositionalEmbedding을 위한 (79,64) 값 and max_len/(bucket_size*2) == 0 이어야한다. 현재 bucket_size = 64
-    )
+  )
+
+  checkpoint_callback = ModelCheckpoint(
+    dirpath=config.checkpoint_path,
+    filename=f"{config.model_name}"+"{epoch}-{step}",
+    every_n_train_steps=config.ckpt_step,
+    save_top_k = 2
+  )
+  # logger
+  logger = TensorBoardLogger('tb_logs', name=config.model_name)
+
+  # Trainer
+  trainer = pl.Trainer()

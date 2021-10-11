@@ -294,7 +294,7 @@ class GPTX(pl.LightningModule):
     self.log('train_loss', loss, prog_bar=True)
     self.log('train_ppl', perplexity, prog_bar=True)
 
-    tb_logs = {'train_log':loss, 'train_ppl':perplexity}
+    tb_logs = {'train_loss':loss, 'train_ppl':perplexity}
 
     return {'loss':loss, 'log': tb_logs}
 
@@ -306,7 +306,7 @@ class GPTX(pl.LightningModule):
     self.log('val_loss', loss, prog_bar=True)
     self.log('val_ppl', perplexity, prog_bar=True)
 
-    tb_logs = {'val_log': loss, 'val_ppl': perplexity}
+    tb_logs = {'val_loss': loss, 'val_ppl': perplexity}
 
     return {'loss': loss, 'log': tb_logs}
 
