@@ -17,5 +17,6 @@
   "gradient_accumulation_steps" : 512,
   "fp16": false,
   "fp16_opt_level": "O2",
-  "device": "cuda"
+  "device": "cuda",
+  "gpu": 2,
 }

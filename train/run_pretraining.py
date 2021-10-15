@@ -6,6 +6,20 @@ from arg import ModelConfig
 from dataset import GPTXDataset
 from model.transformer import GPTX
 from transformers import BertTokenizer
+from torch.utils.data import random_split, DataLoader
+
+
+def build_dataloader(dataset, batch_size, train_rate=0.8,shuffle=True):
+  train_data_len = int(len(dataset) * train_rate)
+  valid_data_len = len(dataset) - train_data_len
+
+  train_data, valid_data = random_split(dataset, (train_data_len, valid_data_len))
+
+  train_dataloader = DataLoader(train_data, batch_size=batch_size, shuffle=shuffle)
+  valid_dataloader = DataLoader(valid_data, batch_size=batch_size, shuffle=shuffle)
+
+  return train_dataloader, valid_dataloader
+
 
 if __name__=='__main__':
   torch.manual_seed(9)
@@ -19,6 +33,7 @@ if __name__=='__main__':
   tokenizer = BertTokenizer(vocab_file=config.vocab_path, do_lower_case=False)
 
   dataset = GPTXDataset(tokenizer, config.max_seq_len, config.data_path)
+  train_dataloader, valid_dataloader = build_dataloader(dataset, config.batch_size,0.9)
 
   model = GPTX(
         num_tokens=tokenizer.vocab_size,
@@ -38,4 +53,8 @@ if __name__=='__main__':
   logger = TensorBoardLogger('tb_logs', name=config.model_name)
 
   # Trainer
-  trainer = pl.Trainer()
+  trainer = pl.Trainer(gpus=config.gpu,
+                       accelerator='dp', # dp is DataParallel
+                       accumulate_grad_batches=config.gradient_accumulation_steps
+                       )
+  trainer.fit(model,train_dataloader=train_dataloader,val_dataloaders=valid_dataloader)
