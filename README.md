@@ -26,6 +26,55 @@ RealFormer [link](https://arxiv.org/abs/2012.11747)
 ![](./images/residual_attn.png)
 ## Train
 ### DeepSpeed
+DeepSpeed is a deep learning training optimization library, providing the means to train massive billion parameter models at scale.
+```
+pip install deepspeed
+```
+> To use ZeRO, you must use precision=16.
+#### Example
+##### 1. ZeRO Stage 2 - Shard optimizer states and gradients, remains at parity with DDP with memory improvement
+```
+from pytorch_lightning import Trainer
+
+model = MyModel()
+trainer = Trainer(gpus=4, plugins="deepspeed_stage_2", precision=16)
+trainer.fit(model)
+```
+##### 2. ZeRO Stage 2 Offload - Offload optimizer states and gradients to CPU. Increases communication, but significant memory improvement
+- Basic usage
+```
+from pytorch_lightning import Trainer
+from pytorch_lightning.plugins import DeepSpeedPlugin
+
+model = MyModel()
+trainer = Trainer(gpus=4, plugins="deepspeed_stage_2_offload", precision=16)
+trainer.fit(model)
+```
+
+- More speed benefit
+```
+import pytorch_lightning
+from pytorch_lightning import Trainer
+from pytorch_lightning.plugins import DeepSpeedPlugin
+from deepspeed.ops.adam import DeepSpeedCPUAdam
+
+
+class MyModel(pl.LightningModule):
+    ...
+
+    def configure_optimizers(self):
+        # DeepSpeedCPUAdam provides 5x to 7x speedup over torch.optim.adam(w)
+        return DeepSpeedCPUAdam(self.parameters())
+
+
+model = MyModel()
+trainer = Trainer(gpus=4, plugins="deepspeed_stage_2_offload", precision=16)
+trainer.fit(model)
+```
+
+##### 3. ZeRO Stage 3 - Shard optimizer states, gradients, (Optional) activations and parameters. Increases communication volume, but even more memory improvement
+##### 4. ZeRO Stage 3 Offload - Offload optimizer states, gradients, (Optional) activations and parameters to CPU. Increases communication, but even more signficant memory improvement.
+  
 ## TODO
 
 - [x] ~~ReZero~~
@@ -74,3 +123,6 @@ So this repository try to use DeepSpeed for training extremely big model.
 
 **RealFormer Residual Attention**
 - [cloneofsimo/RealFormer-pytorch](https://github.com/cloneofsimo/RealFormer-pytorch/blob/main/models.py)
+
+**DeepSpeed**
+- [PyTorch lightning DeepSpeed](https://pytorch-lightning.readthedocs.io/en/stable/advanced/advanced_gpu.html#deepspeed)

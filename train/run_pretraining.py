@@ -55,6 +55,9 @@ if __name__=='__main__':
   # Trainer
   trainer = pl.Trainer(gpus=config.gpu,
                        accelerator='dp', # dp is DataParallel
-                       accumulate_grad_batches=config.gradient_accumulation_steps
+                       accumulate_grad_batches=config.gradient_accumulation_steps,
+                       amp_backend="apex",
+                       amp_level="O2",
+
                        )
   trainer.fit(model,train_dataloader=train_dataloader,val_dataloaders=valid_dataloader)
