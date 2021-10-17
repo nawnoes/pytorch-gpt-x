@@ -7,6 +7,7 @@ from dataset import GPTXDataset
 from model.transformer import GPTX
 from transformers import BertTokenizer
 from torch.utils.data import random_split, DataLoader
+from pytorch_lightning.plugins import DeepSpeedPlugin
 
 
 def build_dataloader(dataset, batch_size, train_rate=0.8,shuffle=True):
@@ -32,6 +33,7 @@ if __name__=='__main__':
   # Tokenizer
   tokenizer = BertTokenizer(vocab_file=config.vocab_path, do_lower_case=False)
 
+  # Dataset
   dataset = GPTXDataset(tokenizer, config.max_seq_len, config.data_path)
   train_dataloader, valid_dataloader = build_dataloader(dataset, config.batch_size,0.9)
 
@@ -49,15 +51,17 @@ if __name__=='__main__':
     every_n_train_steps=config.ckpt_step,
     save_top_k = 2
   )
+
   # logger
   logger = TensorBoardLogger('tb_logs', name=config.model_name)
 
   # Trainer
   trainer = pl.Trainer(gpus=config.gpu,
-                       accelerator='dp', # dp is DataParallel
+                       plugins=config.deepspeed_plugin,
+                       precision=config.precision,
+                       logger=logger,
                        accumulate_grad_batches=config.gradient_accumulation_steps,
-                       amp_backend="apex",
-                       amp_level="O2",
-
+                       max_epochs=config.epochs
                        )
+
   trainer.fit(model,train_dataloader=train_dataloader,val_dataloaders=valid_dataloader)

@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from torch.nn import CrossEntropyLoss
 import pytorch_lightning as pl
 from transformers import AdamW
+from deepspeed.ops.adam import DeepSpeedCPUAdam, FusedAdam
 
 
 def self_attention(query, key, value, mask=None, causal=False, explicit_topk=None, prev_attn=None):
@@ -259,6 +260,11 @@ class GPTX(pl.LightningModule):
 
     self.norm = nn.LayerNorm(dim)
     self.lm_head = nn.Linear(dim, vocab_size, bias=False)
+
+  def configure_optimizers(self):
+    # DeepSpeedCPUAdam provides 5x, 7x speedup over torch.optim.adma(w)
+    # return DeepSpeedCPUAdam(self.parameters())
+    return FusedAdam(self.parameters())
 
   def forward(self, input_ids, labels):
     x = self.token_emb(input_ids)
