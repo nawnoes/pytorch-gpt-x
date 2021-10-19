@@ -38,10 +38,10 @@ if __name__=='__main__':
   train_dataloader, valid_dataloader = build_dataloader(dataset, config.batch_size,0.9)
 
   model = GPTX(
-        num_tokens=tokenizer.vocab_size,
+        vocab_size=tokenizer.vocab_size,
         dim=config.dim,
         depth=config.depth,
-        heads=config.n_head,
+        head_num=config.n_head,
         max_seq_len=config.max_seq_len, # AxialPositionalEmbedding을 위한 (79,64) 값 and max_len/(bucket_size*2) == 0 이어야한다. 현재 bucket_size = 64
   )
 
