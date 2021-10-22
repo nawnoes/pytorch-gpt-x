@@ -1,3 +1,4 @@
+import os
 import torch
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
@@ -20,6 +21,22 @@ def build_dataloader(dataset, batch_size, train_rate=0.8,shuffle=True):
   valid_dataloader = DataLoader(valid_data, batch_size=batch_size, shuffle=shuffle)
 
   return train_dataloader, valid_dataloader
+
+def gptx_dataset(config, tokenizer):
+  cache_data_path = f'{config.cache_path}/{config.model_name}.pickle'
+  cache_dir_path= os.path.dirname(cache_data_path)
+
+  if os.path.exists(cache_data_path): # 캐시 데이터가 존재하는 경우
+    dataset = torch.load(cache_data_path)
+    return dataset
+  else: # 캐시 데이터가 없는 경우
+    if not os.path.exists(cache_dir_path):
+      os.makedirs(cache_dir_path) # 캐시 디렉토리 경로 생성
+
+    dataset = GPTXDataset(tokenizer, config.max_seq_len, config.data_path)
+    torch.save(dataset, cache_data_path) # 데이터 저장
+
+    return dataset
 
 
 if __name__=='__main__':
@@ -48,8 +65,8 @@ if __name__=='__main__':
   checkpoint_callback = ModelCheckpoint(
     dirpath=config.checkpoint_path,
     filename=f"{config.model_name}"+"{epoch}-{step}",
-    every_n_train_steps=config.ckpt_step,
-    save_top_k = 2
+    every_n_train_steps=config.ckpt_steps,
+    # save_top_k = 2
   )
 
   # logger

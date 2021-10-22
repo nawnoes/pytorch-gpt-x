@@ -3,9 +3,9 @@
   "data_path" :"../data/train/" ,
   "checkpoint_path" : "../checkpoints",
   "model_name": "gptx",
-  "dim": 12288,
+  "dim": 5140,
   "depth": 2,
-  "n_head": 128,
+  "n_head": 40,
   "max_seq_len" : 1024,
   "dropout_prob": 0.3,
   "batch_size" : 2,
@@ -13,7 +13,7 @@
   "ckpt_steps" : 1000,
   "gradient_accumulation_steps" : 512,
   "device": "cpu",
-  "gpu": 2,
+  "gpu": 0,
   "deepspeed_plugin":"deepspeed_stage_3_offload",
   "precision": "16"
 }
