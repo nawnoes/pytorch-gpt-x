@@ -57,6 +57,14 @@ So this repository try to use DeepSpeed for training extremely big model.
 |   GPT-3 6.7B    |  6.7B   |    32   |  4096   |    32   |   128  |     2M     |   1.2 x 10^-4 |
 |   GPT-3 2.7B    |  2.7B   |    32   |  25560  |    32   |   80   |     1M     |   1.6 x 10^-4 |
 
+## Progress
+- [x] pytorch-lighting
+- [x] apply deepspeed
+- [ ] test pretraining
+
+## Issue
+- `AttributeError: module 'deepspeed' has no attribute 'zero'`: reinstall deepspeed
+
 # References
 **Transformer**
 

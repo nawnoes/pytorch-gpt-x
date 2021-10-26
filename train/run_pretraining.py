@@ -1,4 +1,6 @@
 import os
+import sys
+sys.path.append('../')
 import torch
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
@@ -38,7 +40,6 @@ def gptx_dataset(config, tokenizer):
 
     return dataset
 
-
 if __name__=='__main__':
   torch.manual_seed(9)
   base_path = '..'
@@ -51,7 +52,7 @@ if __name__=='__main__':
   tokenizer = BertTokenizer(vocab_file=config.vocab_path, do_lower_case=False)
 
   # Dataset
-  dataset = GPTXDataset(tokenizer, config.max_seq_len, config.data_path)
+  dataset = gptx_dataset(config, tokenizer)
   train_dataloader, valid_dataloader = build_dataloader(dataset, config.batch_size,0.9)
 
   model = GPTX(
