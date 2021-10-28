@@ -25,7 +25,7 @@ def build_dataloader(dataset, batch_size, train_rate=0.8,shuffle=True):
   return train_dataloader, valid_dataloader
 
 def gptx_dataset(config, tokenizer):
-  cache_data_path = f'{config.cache_path}/{config.model_name}.pickle'
+  cache_data_path = f'{config.checkpoint_path}/{config.model_name}.pickle'
   cache_dir_path= os.path.dirname(cache_data_path)
 
   if os.path.exists(cache_data_path): # 캐시 데이터가 존재하는 경우
