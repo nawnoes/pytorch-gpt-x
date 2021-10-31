@@ -64,6 +64,7 @@ So this repository try to use DeepSpeed for training extremely big model.
 
 ## Issue
 - `AttributeError: module 'deepspeed' has no attribute 'zero'`: reinstall deepspeed
+- `userwarning: cuda initialization: the nvidia driver on your system is too old`: reinstall pytorch following by cuda version
 
 # References
 **Transformer**

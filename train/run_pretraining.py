@@ -78,8 +78,9 @@ if __name__=='__main__':
                        plugins=config.deepspeed_plugin,
                        precision=config.precision,
                        logger=logger,
-                       accumulate_grad_batches=config.gradient_accumulation_steps,
-                       max_epochs=config.epochs
+                       # accumulate_grad_batches=config.gradient_accumulation_steps,
+                       max_epochs=config.epochs,
+                       callbacks=[checkpoint_callback]
                        )
 
   trainer.fit(model,train_dataloader=train_dataloader,val_dataloaders=valid_dataloader)

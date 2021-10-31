@@ -104,6 +104,6 @@ if __name__=='__main__':
     config = ModelConfig(config_path=config_path).get_config()
 
     # Tokenizer
-    tokenizer = BertTokenizer(vocab_file=config.vocab_path, do_lower_case=False)
-    dataset = GPTXDataset(tokenizer,config.max_seq_len, config.data_path)
+    tokenizer = BertTokenizer(vocab_file='./data/vocab-v1.txt', do_lower_case=False)
+    dataset = GPTXDataset(tokenizer,config.max_seq_len, './data/train/')
     print(dataset)

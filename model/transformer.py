@@ -79,9 +79,9 @@ class MultiHeadAttention(nn.Module):
 
     attention_result, attention_score, pre_softmax_attn = self.self_attention(query, key, value, mask, self.causal, self.explicit_topk, prev_attn)
     attention_result = attention_result.transpose(1,2).contiguous().view(batche_num, -1, self.head_num * self.d_k)
+    attn_output = self.w_o(attention_result)
 
-
-    return self.w_o(attention_result), pre_softmax_attn
+    return attn_output, pre_softmax_attn
 
 class Scale(nn.Module):
   def __init__(self, scale_value, fn):
@@ -193,8 +193,7 @@ class ReZero(nn.Module):
       self.g = nn.Parameter(torch.zeros(1))
       self.dropout = nn.Dropout(dropout)
       
-  def forward(self, x, sublayer):
-      x = sublayer(x)
+  def forward(self, x):
       x = x * self.g
       return x + self.dropout(x)
 
