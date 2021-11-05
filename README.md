@@ -40,8 +40,9 @@ trainer = pl.Trainer(gpus=config.gpu,
 - [x] ~~Macaron architectures~~
 - [x] ~~Macaron architectures - layer Scale 0.5~~
 - [x] ~~Explicit Sparse Transformer~~
-- [ ] torch lightning
-- [ ] Deepspeed train on single GPU
+- [x] ~~torch lightning~~
+- [x] ~~Deepspeed train on single GPU~~
+- [ ] apply wandb
 - [ ] Deepspeed parallel trainig on 2 V100 GPU with 16GB Memory
 
 ## Parameter For Few-shot
@@ -55,7 +56,7 @@ So this repository try to use DeepSpeed for training extremely big model.
 |   GPT-3 175B    |  175B   |    96   |  12288  |    96   |   128  |    3.2M    |   0.6 x 10^-4 |
 |   GPT-3 13B     |  13B    |    40   |  5140   |    40   |   128  |     2M     |   1.0 x 10^-4 |
 |   GPT-3 6.7B    |  6.7B   |    32   |  4096   |    32   |   128  |     2M     |   1.2 x 10^-4 |
-|   GPT-3 2.7B    |  2.7B   |    32   |  25560  |    32   |   80   |     1M     |   1.6 x 10^-4 |
+|   GPT-3 2.7B    |  2.7B   |    32   |  2560  |    32   |   80   |     1M     |   1.6 x 10^-4 |
 
 ## Progress
 - [x] pytorch-lighting
@@ -65,6 +66,11 @@ So this repository try to use DeepSpeed for training extremely big model.
 ## Issue
 - `AttributeError: module 'deepspeed' has no attribute 'zero'`: reinstall deepspeed
 - `userwarning: cuda initialization: the nvidia driver on your system is too old`: reinstall pytorch following by cuda version
+    **my solution**-GPU V100, cuda 10.1  
+
+    ```sh
+  pip install torch==1.7.1+cu101 torchvision==0.8.2+cu101 torchaudio==0.7.2 -f https://download.pytorch.org/whl/torch_stable.html
+    ```
 
 # References
 **Transformer**

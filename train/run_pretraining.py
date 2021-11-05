@@ -65,7 +65,7 @@ if __name__=='__main__':
 
   checkpoint_callback = ModelCheckpoint(
     dirpath=config.checkpoint_path,
-    filename=f"{config.model_name}"+"{epoch}-{step}",
+    filename=f"{config.model_name}-"+"{epoch}-{step}",
     every_n_train_steps=config.ckpt_steps,
     # save_top_k = 2
   )
