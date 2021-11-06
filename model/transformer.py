@@ -262,8 +262,8 @@ class GPTX(pl.LightningModule):
 
   def configure_optimizers(self):
     # DeepSpeedCPUAdam provides 5x, 7x speedup over torch.optim.adma(w)
-    # return DeepSpeedCPUAdam(self.parameters())
-    return FusedAdam(self.parameters())
+    return DeepSpeedCPUAdam(self.parameters())
+    # return FusedAdam(self.parameters())
 
   def forward(self, input_ids, labels):
     x = self.token_emb(input_ids)
@@ -282,14 +282,10 @@ class GPTX(pl.LightningModule):
       shift_labels = labels[..., 1:].contiguous()
 
       # Flatten the tokens
-      loss_fct = CrossEntropyLoss()
-      loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+      loss_fn = CrossEntropyLoss()
+      loss = loss_fn(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
 
     return lm_logits, loss
-
-  def configure_optimizers(self):
-    optimizer = AdamW(self.parameters(), lr=5e-4, eps=1e-8)
-    return optimizer
 
   def training_step(self, train_batch, batch_idx):
     input_ids, labels = train_batch
