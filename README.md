@@ -71,7 +71,7 @@ So this repository try to use DeepSpeed for training extremely big model.
     ```sh
   pip install torch==1.7.1+cu101 torchvision==0.8.2+cu101 torchaudio==0.7.2 -f https://download.pytorch.org/whl/torch_stable.html
     ```
-
+- `can't find CUDA_HOME path`: reinstall cuda
 # References
 **Transformer**
 
