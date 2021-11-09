@@ -262,7 +262,8 @@ class GPTX(pl.LightningModule):
 
   def configure_optimizers(self):
     # DeepSpeedCPUAdam provides 5x, 7x speedup over torch.optim.adma(w)
-    return DeepSpeedCPUAdam(self.parameters())
+    return DeepSpeedCPUAdam(model_params=self.parameters(),
+                            lr=1e-5)
     # return FusedAdam(self.parameters())
 
   def forward(self, input_ids, labels):
