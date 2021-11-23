@@ -1,4 +1,5 @@
 torch
+wandb
 transformers
 reformer_pytorch
 fairseq

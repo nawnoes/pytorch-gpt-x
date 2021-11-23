@@ -43,7 +43,7 @@ trainer = pl.Trainer(gpus=config.gpu,
 - [x] ~~torch lightning~~
 - [x] ~~Deepspeed train on single GPU~~
 - [ ] apply wandb
-- [ ] Deepspeed parallel trainig on 2 V100 GPU with 16GB Memory
+- [ ] Deepspeed pipeline parallel trainig on 2 V100 GPU with 16GB Memory
 
 ## Parameter For Few-shot
 The 175B parameter model is very large, but a large model is needed for Few-Shot Learning.
