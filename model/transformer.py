@@ -7,6 +7,7 @@ from torch.nn import CrossEntropyLoss
 import pytorch_lightning as pl
 from transformers import AdamW
 from deepspeed.ops.adam import DeepSpeedCPUAdam, FusedAdam
+from collections import OrderedDict
 
 
 def self_attention(query, key, value, mask=None, causal=False, explicit_topk=None, prev_attn=None):
@@ -197,8 +198,16 @@ class ReZero(nn.Module):
       x = x * self.g
       return x + self.dropout(x)
 
-  
-class TransformerGPTX(nn.Module):
+class Embedding(nn.Module):
+  def __init__(self, vocab_size, dim, max_seq_len):
+    self.token_emb = nn.Embedding(vocab_size, dim)
+    self.position_emb = PositionalEmbedding(dim, max_seq_len)
+  def forward(self, input_ids):
+    x= self.token_emb(input_ids)
+    x= x+self.position_emb(input_ids).type_as(x)
+
+    return x
+class GPTX(nn.Module):
   def __init__(self,
                vocab_size,
                dim,
@@ -206,26 +215,22 @@ class TransformerGPTX(nn.Module):
                max_seq_len,
                head_num,
                dropout=0.1):
-    super(TransformerGPTX, self).__init__()
+    super(GPTX, self).__init__()
 
     # Embedding
-    self.token_emb = nn.Embedding(vocab_size, dim)
-    self.position_emb = PositionalEmbedding(dim, max_seq_len)
+    self.embedding = Embedding(vocab_size, dim, max_seq_len)
 
     # Decoders
-    self.decoders = nn.ModuleList([Decoder(d_model=dim, head_num=head_num, dropout=dropout) for _ in range(depth)])
+    self.decoders = nn.Sequential(OrderedDict([Decoder(d_model=dim, head_num=head_num, dropout=dropout) for _ in range(depth)]))
 
     self.norm = nn.LayerNorm(dim)
     self.lm_head = nn.Linear(dim, vocab_size, bias=False)
 
   def forward(self, input_ids, labels):
-    x = self.token_emb(input_ids)
-    x = x + self.position_emb(input_ids).type_as(x)
+    pre_attn = None
 
-    pre_attn =None
-    for decoder in self.decoders:
-      x, pre_attn = decoder(x, pre_attn)
-
+    x = self.embedding(input_ids)
+    x = self.decoders(x,pre_attn)
     lm_logits = self.lm_head(x)
 
     loss = None
@@ -235,12 +240,12 @@ class TransformerGPTX(nn.Module):
       shift_labels = labels[..., 1:].contiguous()
 
       # Flatten the tokens
-      loss_fct = CrossEntropyLoss()
-      loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+      loss_fn = CrossEntropyLoss()
+      loss = loss_fn(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
 
     return lm_logits, loss
 
-class GPTX(pl.LightningModule):
+class LitGPTX(pl.LightningModule):
   def __init__(self,
                vocab_size,
                dim,
