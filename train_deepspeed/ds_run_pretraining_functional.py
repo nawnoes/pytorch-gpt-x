@@ -14,10 +14,10 @@ import os
 import json
 import logging
 from datetime import datetime
-from dataset import GPT3Dataset
-from arg import ModelConfig
+from common.dataset import GPT3Dataset
+from common.arg import ModelConfig
 from model.reformer import ReformerGPTX
-from model.transformer import TransformerGPTX
+from model.transformer import GPTX
 from ds_util import get_argument_parser
 import deepspeed
 
@@ -213,7 +213,7 @@ def main():
     # load data
     train_dataloader, eval_dataloader = build_dataloaders(config, dataset, train_test_split=0.1)
 
-    # train model
+    # train_pl model
     train_gpt3(config, model, train_dataloader, eval_dataloader)
 
 

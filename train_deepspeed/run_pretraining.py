@@ -17,9 +17,9 @@ import os
 import json
 import logging
 from datetime import datetime
-from dataset import GPT3Dataset
-from arg import ModelConfig
-from model.reformer import ReformerGPT3
+from common.dataset import GPTXDataset
+from common.arg import ModelConfig
+from model.reformer import ReformerGPTX
 
 class ReformerGPT3Trainer(object):
     def __init__(self,

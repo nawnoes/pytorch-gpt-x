@@ -1,5 +1,5 @@
 #
-# Implementation of AlexNet for illustrative purposes. The train.py driver
+# Implementation of AlexNet for illustrative purposes. The train_pl.py driver
 # can import AlexNet from here or directly from torchvision.
 #
 # Taken from torchvision.models.alexnet:

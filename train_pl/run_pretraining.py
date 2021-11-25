@@ -5,12 +5,11 @@ import torch
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
-from arg import ModelConfig
-from dataset import GPTXDataset
-from model.transformer import GPTX
+from common.arg import ModelConfig
+from common.dataset import GPTXDataset
+from model.transformer import LitGPTX
 from transformers import BertTokenizer
 from torch.utils.data import random_split, DataLoader
-from pytorch_lightning.plugins import DeepSpeedPlugin
 
 
 def build_dataloader(dataset, batch_size, train_rate=0.8,shuffle=True):
@@ -55,7 +54,7 @@ if __name__=='__main__':
   dataset = gptx_dataset(config, tokenizer)
   train_dataloader, valid_dataloader = build_dataloader(dataset, config.batch_size,0.9)
 
-  model = GPTX(
+  model = LitGPTX(
         vocab_size=tokenizer.vocab_size,
         dim=config.dim,
         depth=config.depth,

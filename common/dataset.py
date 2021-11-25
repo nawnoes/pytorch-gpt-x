@@ -9,7 +9,7 @@ from torch.utils.data import Dataset
 from arg import ModelConfig
 from transformers import BertTokenizer
 
-class GPT3Dataset(Dataset):
+class GPTXDataset(Dataset):
     def __init__(self, tokenizer, max_len, dir_path):
         logging.info('Start pretraining data load!')
 
@@ -99,11 +99,11 @@ class GPTXDataset(Dataset):
         return inputs, labels
 
 if __name__=='__main__':
-    data_path = './data/train/sample.txt'
-    config_path = './config.json'
+    data_path = '../data/train/sample.txt'
+    config_path = '../train_pl/config.json'
     config = ModelConfig(config_path=config_path).get_config()
 
     # Tokenizer
-    tokenizer = BertTokenizer(vocab_file='./data/vocab-v1.txt', do_lower_case=False)
-    dataset = GPTXDataset(tokenizer,config.max_seq_len, './data/train/')
+    tokenizer = BertTokenizer(vocab_file='../data/vocab-v1.txt', do_lower_case=False)
+    dataset = GPTXDataset(tokenizer, config.max_seq_len, '../data/train/')
     print(dataset)
