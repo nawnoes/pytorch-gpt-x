@@ -10,6 +10,7 @@ from common.dataset import GPTXDataset
 from model.transformer import LitGPTX
 from transformers import BertTokenizer
 from torch.utils.data import random_split, DataLoader
+from pytorch_lightning.loggers import WandbLogger
 
 
 def build_dataloader(dataset, batch_size, train_rate=0.8,shuffle=True):
@@ -70,7 +71,8 @@ if __name__=='__main__':
   )
 
   # logger
-  logger = TensorBoardLogger('tb_logs', name=config.model_name)
+  # logger = TensorBoardLogger('tb_logs', name=config.model_name)
+  logger = WandbLogger(project="gpt-x")
 
   # Trainer
   trainer = pl.Trainer(gpus=config.gpu,

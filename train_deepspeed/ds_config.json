@@ -5,7 +5,7 @@
   "optimizer": {
     "type": "Adam",
     "params": {
-      "lr": 0.00015,
+      "lr": 14e-4,
       "weight_decay": 1e-2
     }
   },
@@ -13,6 +13,13 @@
   "fp16": {
     "enabled": true
   },
-  "zero_optimization": true,
+  "zero_optimization": {
+    "stage": 2,
+    "allgather_partitions": true,
+    "reduce_scatter": true,
+    "allgather_bucket_size": 50000000,
+    "reduce_bucket_size": 50000000,
+    "overlap_comm": true
+  },
   "device": "cuda"
 }

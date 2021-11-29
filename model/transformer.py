@@ -231,6 +231,7 @@ class GPTX(nn.Module):
 
     x = self.embedding(input_ids)
     x = self.decoders(x,pre_attn)
+
     lm_logits = self.lm_head(x)
 
     loss = None
@@ -253,7 +254,7 @@ class LitGPTX(pl.LightningModule):
                max_seq_len,
                head_num,
                dropout=0.1):
-    super(GPTX, self).__init__()
+    super(LitGPTX, self).__init__()
 
     # Embedding
     self.token_emb = nn.Embedding(vocab_size, dim)

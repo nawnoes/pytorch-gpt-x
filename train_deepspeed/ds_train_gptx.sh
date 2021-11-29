@@ -2,7 +2,7 @@
 
 base_dir=`pwd`
 
-JOB_NAME=deepspeed_reformer_gpt3
+JOB_NAME=deepspeed_gpt3
 
 deepspeed --include localhost:1\
           ${base_dir}/ds_run_pretraining_functional.py \
