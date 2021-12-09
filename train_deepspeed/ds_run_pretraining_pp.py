@@ -213,7 +213,7 @@ def main():
     train_dataloader, eval_dataloader = build_dataloaders(config, dataset, train_test_split=0.1)
 
     # train_pl model
-    train_gptx(config, model, train_dataloader, eval_dataloader)
+    train_gptx_pipeline_parallelism(config, model, train_dataloader, eval_dataloader)
 
 
 if __name__ == '__main__':
