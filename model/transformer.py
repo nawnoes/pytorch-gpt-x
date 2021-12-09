@@ -164,7 +164,8 @@ class Decoder(nn.Module):
     self.residual_2 = ReZero(dropout) if rezero_use else Residual(dropout=dropout)
 
 
-  def forward(self, x, prev_attn=None):
+  def forward(self, input):
+    x, prev_attn = input
     if self.macaron:
       x = self.macaron_net(x)
     # target = self.residual_1(target, lambda x: self.masked_multi_head_attention(x, x, x))
@@ -176,7 +177,7 @@ class Decoder(nn.Module):
     x = self.feed_forward(x)
     x = self.residual_2(x)
 
-    return x, pre_softmax_attn
+    return (x, pre_softmax_attn)
 
 class PositionalEmbedding(nn.Module):
   def __init__(self, dim, max_seq_len):
@@ -221,7 +222,7 @@ class GPTX(nn.Module):
     self.embedding = Embedding(vocab_size, dim, max_seq_len)
 
     # Decoders
-    self.decoders = nn.Sequential(OrderedDict([Decoder(d_model=dim, head_num=head_num, dropout=dropout) for _ in range(depth)]))
+    self.decoders = nn.Sequential([ Decoder(d_model=dim, head_num=head_num, dropout=dropout) for _ in range(depth) ])
 
     self.norm = nn.LayerNorm(dim)
     self.lm_head = nn.Linear(dim, vocab_size, bias=False)
@@ -230,9 +231,9 @@ class GPTX(nn.Module):
     pre_attn = None
 
     x = self.embedding(input_ids)
-    x = self.decoders(x,pre_attn)
+    x = self.decoders((x,pre_attn))
 
-    lm_logits = self.lm_head(x)
+    lm_logits = self.lm_head(x[0])
 
     loss = None
     if labels is not None:
