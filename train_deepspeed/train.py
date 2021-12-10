@@ -14,6 +14,7 @@ import wandb
 import os
 import json
 import logging
+from model.transformer import LayerNorm
 
 def pretrain(arg):
     """Main Train
@@ -79,10 +80,22 @@ def train(config,
 
 def evaluate(config, model, dataloader):
     pass
+def eval_forward_step(eval_dataset, model):
+    return model.eval_batch(eval_dataset, return_logit=False)
 def setup_model_and_optimizer(arg, config):
     """"""
     model = get_model(config)
-    optimizer = get_optimizer(config, model)
+    optimizer, model_params = get_optimizer(config, model)
+    lr_scheduler = get_learning_rate_scheduler(optimizer=optimizer, config=config)
+
+    model,optimizer, _, lr_scheduler = deepspeed.initialize(
+        model=model,
+        optimizer=optimizer,
+        args=arg,
+        lr_scheduler=lr_scheduler,
+        dist_init_required=False,
+        training_data=
+    )
 
 def get_model(config):
     model = GPTXPipe(vocab_size= config.vocab_size,
@@ -91,15 +104,26 @@ def get_model(config):
                     head_num= config.n_head,
                     max_seq_len= config.max_seq_len)
     model = model.to_layer()
+    model = PipelineModule(layers=model,
+                           num_stages=config.num_stages)
     return model
-def get_model_params(model):
-    """
-    no weight
-    """
-    model_params = {"params": []}
+def get_model_params(config, model):
+    weight_decay_params = {"params": [], 'weight_decay': config['weight_decay']}
+    no_weight_decay_params = {"params": [], 'weight_decay': 0.0}
     for module in model:
-        model_params['params'].extend([p for n, p in list(module._parameters.items()) if p is not None and n != "bias"])
-    return [model_params]
+        if isinstance(module,LayerNorm) or config.weight_decay==0.0:
+            no_weight_decay_params["params"].extend(
+                [p for p in list(module._parameters.values()) if p is not None]
+            )
+        else:
+            weight_decay_params["params"]\
+                .extend([p for n, p in list(module._parameters.items()) if p is not None and n != "bias"])
+            no_weight_decay_params["params"]\
+                .extend([p for n, p in list(module._parameters.items()) if p is not None and n == "bias"])
+    if config.weight_decay==0.0:
+        return [no_weight_decay_params]
+
+    return weight_decay_params, no_weight_decay_params
 
 def get_optimizer(config, model):
     model_params = get_model_params(model)
@@ -111,14 +135,14 @@ def get_optimizer(config, model):
         from deepspeed.ops.adam import FusedAdam as Adam
         optimizer = Adam(model_params,
                          **config.optimizer['params'])
-    return optimizer
+    return optimizer,model_params
 def get_learning_rate_scheduler(optimizer, config):
     num_iter = config['max_train_step']
     warmup_num_iter= num_iter * config['warmup_iter']
     lr_scheduler = get_cosine_schedule_with_warmup(optimizer=optimizer,
                                                    num_warmup_steps=warmup_num_iter,
-                                                   num_training_steps=num_iter
-                                                   )
+                                                   num_training_steps=num_iter)
+    return lr_scheduler
 def build_dataloaders(config, dataset, train_test_split=0.1, train_shuffle=True, eval_shuffle=True):
     dataset_len = len(dataset)
     eval_len = int(dataset_len * train_test_split)

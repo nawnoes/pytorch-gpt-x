@@ -86,7 +86,7 @@ def train_pipe(args, part='parameters'):
     net = PipelineModule(layers=join_layers(net),
                          loss_fn=torch.nn.CrossEntropyLoss(),
                          num_stages=args.pipeline_parallel_size,
-                         partition_method=part,
+                         partition_method=part, # part='parameters'
                          activation_checkpoint_interval=0)
 
     trainset = cifar_trainset(args.local_rank)
