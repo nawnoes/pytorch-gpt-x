@@ -64,49 +64,6 @@ def get_args():
     args = parser.parse_args()
     return args
 
-
-def train_base(args):
-    torch.manual_seed(args.seed)
-
-    # VGG also works :-)
-    #net = vgg19(num_classes=10)
-    net = AlexNet(num_classes=10)
-
-    trainset = cifar_trainset(args.local_rank)
-
-    engine, _, dataloader, __ = deepspeed.initialize(
-        args=args,
-        model=net,
-        model_parameters=[p for p in net.parameters() if p.requires_grad],
-        training_data=trainset)
-
-    dataloader = RepeatingLoader(dataloader)
-    data_iter = iter(dataloader)
-
-    rank = dist.get_rank()
-    gas = engine.gradient_accumulation_steps()
-
-    criterion = torch.nn.CrossEntropyLoss()
-
-    total_steps = args.steps * engine.gradient_accumulation_steps()
-    step = 0
-    for micro_step in range(total_steps):
-        batch = next(data_iter)
-        inputs = batch[0].to(engine.device)
-        labels = batch[1].to(engine.device)
-
-        outputs = engine(inputs)
-        loss = criterion(outputs, labels)
-        engine.backward(loss)
-        engine.step()
-
-        if micro_step % engine.gradient_accumulation_steps() == 0:
-            step += 1
-            if rank == 0 and (step % 10 == 0):
-                print(f'step: {step:3d} / {args.steps:3d} loss: {loss}')
-
-
-
 def join_layers(vision_model):
     layers = [
         *vision_model.features,
@@ -121,9 +78,7 @@ def train_pipe(args, part='parameters'):
     torch.manual_seed(args.seed)
     deepspeed.runtime.utils.set_random_seed(args.seed)
 
-    #
     # Build the model
-    #
 
     # VGG also works :-)
     #net = vgg19(num_classes=10)
@@ -153,7 +108,4 @@ if __name__ == '__main__':
     args.local_rank = int(os.environ['LOCAL_RANK'])
     torch.cuda.set_device(args.local_rank)
 
-    if args.pipeline_parallel_size == 0:
-        train_base(args)
-    else:
-        train_pipe(args)
+    train_pipe(args)

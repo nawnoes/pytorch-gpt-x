@@ -1,0 +1,28 @@
+{
+  "vocab_path" : "../data/vocab-v1.txt",
+  "data_path" :"../data/train/" ,
+  "checkpoint_path" : "../checkpoints",
+  "model_name": "gptx",
+  "vocab_size": 22000,
+  "dim": 2560,
+  "depth": 8,
+  "n_head": 32,
+  "max_seq_len" : 1024,
+  "dropout_prob": 0.3,
+  "optimizer": {
+    "type": "cpu_adam",
+    "params": {
+      "lr": 4e-6,
+      "betas": [0.8, 0.999],
+      "eps": 1e-8,
+      "weight_decay": 3e-7
+    }
+
+  },
+  "epoch": 1,
+  "batch_size" : 2,
+  "ckpt_steps" : 1000,
+  "is_pipe_parallel": true,
+  "gpu": 2,
+  "warup_iter": 0.1
+}

@@ -4,10 +4,9 @@ warnings.filterwarnings("ignore")
 sys.path.append('../')
 
 import torch
-from torch.utils.data import DataLoader, random_split
-
 from tqdm import tqdm
 
+from torch.utils.data import DataLoader, random_split
 from transformers import BertTokenizer
 
 import os
@@ -27,9 +26,7 @@ def get_arguments():
     parser = get_argument_parser()
     # Include DeepSpeed configuration arguments
     parser = deepspeed.add_config_arguments(parser)
-
     args = parser.parse_args()
-
     # no cuda mode is not supported
     args.no_cuda = False
 
@@ -166,11 +163,11 @@ def evaluate(config, model, dataloader):
             results_file.write(f'{datetime.now()} | Step: {step} | Eval Loss: {total_eval_loss} | Perplexity: {total_perplexity}\n')
             results_file.close()
 
-def save(config, model, epoch, losses, train_step):
+def save(config, model, epoch, losses, step):
     checkpoint_state_dict = {
       'epoch': epoch,  # 현재 학습 epoch
       'losses': losses,  # Loss 저장
-      'train_step': train_step,  # 현재 진행한 학습
+      'step': step,  # 현재 진행한 학습
     }
     model.save_checkpoint(config.checkpoint_path, config.model_name, checkpoint_state_dict)
 
