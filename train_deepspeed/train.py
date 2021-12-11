@@ -22,8 +22,11 @@ def pretrain(arg):
     2) set dataset
     3) train the model
     """
-    args = get_arguments()
+    deepspeed.init_distributed(dist_backend='nccl')
+    arg.local_rank = int(os.environ['LOCAL_RANK'])
+    torch.cuda.set_device(arg.local_rank)
 
+    args = get_arguments()
     config = ModelConfig(config_path=args.config).get_config()
 
     tokenizer = BertTokenizer(vocab_file=config.vocab_path, do_lower_case=False)
@@ -36,8 +39,20 @@ def pretrain(arg):
     train_dataloader, eval_dataloader = build_dataloaders(config, dataset, train_test_split=0.1)
 
     config['max_train_step'] = len(train_dataloader) * config.epoch
+    config['max_eval_step'] = len(eval_dataloader)
 
-    model, optimizer, lr_scheduler = setup_model_and_optimizer(arg)
+    model, optimizer, lr_scheduler = setup_model_and_optimizer(config)
+
+    model,optimizer, _, lr_scheduler = deepspeed.initialize(
+        model=model,
+        optimizer=optimizer,
+        args=arg,
+        lr_scheduler=lr_scheduler,
+        dist_init_required=False,
+        training_data=train_dataloader,
+        eval_dataloader = eval_dataloader
+    )
+
 
     train(config=config,
           model=model,
@@ -54,55 +69,42 @@ def train(config,
           eval_dataloader):
     # Variables
     losses = {}
-    perplexity = 0.0
+    perplexities = []
 
     # Set train mode
     model.train()
 
-    # Train
-    train_progress_iter = tqdm(iterable=enumerate(train_dataloader),
-                       total=config['max_train_step'],
-                       desc='GPTX Train Iterator',
-                       bar_format='{l_bar}{bar:10}{r_bar}')
+    for _ in range(config['max_train_step']):
+        lm_logit, loss = model.train_batch()
+    train_result = {"loss": loss.item(), "ppl": torch.exp(loss)}
 
-    for step, batch in train_progress_iter:
-        inputs, labels = batch
-        lm_logit, loss = model(inputs, labels)
+    return train_result
 
-        step_ppl = torch.exp(loss)
-        perplexity += step_ppl
-        model.backward(loss)
-        model.step()
+def evaluate(config, model):
+    model.eval()
 
+    with torch.no_grad():
+        for _ in range(config['max_train_step']):
+            loss = model.eval_batch(return_logit=False)
 
+    eval_result = {"loss": loss.item(), "ppl": torch.exp(loss)}
+    model.train()
+    return eval_result
 
-
-
-def evaluate(config, model, dataloader):
-    pass
-def eval_forward_step(eval_dataset, model):
-    return model.eval_batch(eval_dataset, return_logit=False)
-def setup_model_and_optimizer(arg, config):
+def setup_model_and_optimizer(config):
     """"""
     model = get_model(config)
     optimizer, model_params = get_optimizer(config, model)
     lr_scheduler = get_learning_rate_scheduler(optimizer=optimizer, config=config)
 
-    model,optimizer, _, lr_scheduler = deepspeed.initialize(
-        model=model,
-        optimizer=optimizer,
-        args=arg,
-        lr_scheduler=lr_scheduler,
-        dist_init_required=False,
-        training_data=
-    )
+    return model, optimizer, lr_scheduler
 
 def get_model(config):
     model = GPTXPipe(vocab_size= config.vocab_size,
-                    dim = config.dim,
-                    depth = config.depth,
-                    head_num= config.n_head,
-                    max_seq_len= config.max_seq_len)
+                     dim = config.dim,
+                     depth = config.depth,
+                     head_num= config.n_head,
+                     max_seq_len= config.max_seq_len)
     model = model.to_layer()
     model = PipelineModule(layers=model,
                            num_stages=config.num_stages)
@@ -143,6 +145,7 @@ def get_learning_rate_scheduler(optimizer, config):
                                                    num_warmup_steps=warmup_num_iter,
                                                    num_training_steps=num_iter)
     return lr_scheduler
+
 def build_dataloaders(config, dataset, train_test_split=0.1, train_shuffle=True, eval_shuffle=True):
     dataset_len = len(dataset)
     eval_len = int(dataset_len * train_test_split)
