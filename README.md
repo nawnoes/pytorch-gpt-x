@@ -1,10 +1,7 @@
-# Pytorch GPT-X
-My Own Pytorch GPT-X 
+# GPT-X
+Train GPT-X on V100(16GB) Using improved Transformer. 
 
-## 1. Abstract
-Train GPT-3 model on V100(16GB Mem) Using improved Transformer. 
-
-## 2. Model
+## Model
 ### Transformer
 ### Additional Module
 #### ① Rezero
