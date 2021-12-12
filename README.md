@@ -2,8 +2,7 @@
 Train GPT-X on V100(16GB) Using improved Transformer. 
 
 ## Model
-### Transformer
-### Additional Module
+### Transformer Additional Module
 #### ① Rezero
 Rezero Is All You Need [link](https://arxiv.org/abs/2003.04887)
 
