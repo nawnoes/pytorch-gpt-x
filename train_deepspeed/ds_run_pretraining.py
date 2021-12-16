@@ -189,9 +189,6 @@ class ReformerGPT3Trainer(object):
         return self.model
 
     def evaluate(self, dataloader):
-        if self.n_gpu > 1 and not isinstance(self.model, nn.DataParallel):
-            self.model = nn.DataParallel(self.model)
-
         self.model.eval()
 
         eval_loss = 0.0

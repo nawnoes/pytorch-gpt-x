@@ -42,10 +42,10 @@ def gptx_dataset(config, tokenizer):
 
 if __name__=='__main__':
   torch.manual_seed(9)
-  base_path = '..'
+  base_path = '.'
 
   # Config
-  config_path = f'{base_path}/config.json'
+  config_path = f'{base_path}/config_gpt2.json'
   config = ModelConfig(config_path=config_path).get_config()
 
   # Tokenizer
@@ -72,7 +72,7 @@ if __name__=='__main__':
 
   # logger
   # logger = TensorBoardLogger('tb_logs', name=config.model_name)
-  logger = WandbLogger(project="gpt-x")
+  logger = WandbLogger(project="gpt-rezero-sparsetopk")
 
   # Trainer
   trainer = pl.Trainer(gpus=config.gpu,

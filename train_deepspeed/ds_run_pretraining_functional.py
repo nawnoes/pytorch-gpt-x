@@ -17,7 +17,7 @@ from datetime import datetime
 from common.dataset import GPTXDataset
 from common.arg import ModelConfig
 from model.reformer import ReformerGPTX
-from model.transformer import GPTX
+from model.n_transformer import GPTX
 from ds_util import get_argument_parser
 import deepspeed
 import wandb

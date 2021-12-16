@@ -10,7 +10,8 @@ from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 
 from transformers import BertTokenizer
-# from apex import amp
+if torch.cuda.is_available():
+    from apex import amp
 
 from fairseq.optim.adafactor import Adafactor
 import os

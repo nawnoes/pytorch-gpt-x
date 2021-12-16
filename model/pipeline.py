@@ -1,4 +1,4 @@
-from model.transformer import GPTX
+from model.n_transformer import GPTX
 import deepspeed
 
 class GPTXPipe(GPTX):

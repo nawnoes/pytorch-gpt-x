@@ -1,63 +1,39 @@
 import math
 import torch
-from torch.optim import Adam
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import CrossEntropyLoss
 import pytorch_lightning as pl
-from transformers import AdamW
-from deepspeed.ops.adam import DeepSpeedCPUAdam, FusedAdam
-from collections import OrderedDict
+from deepspeed.ops.adam import DeepSpeedCPUAdam
 
-
-def self_attention(query, key, value, mask=None, causal=False, explicit_topk=None, prev_attn=None):
-  key_transpose = torch.transpose(key,-2,-1)                      # (bath, head_num, d_k, token_)
+def self_attention(query, key, value, mask=None, causal=False):
+  key_transpose = torch.transpose(key,-2,-1)                      # (bath, n_head, d_k, token_)
   matmul_result = torch.matmul(query,key_transpose)                # MatMul(Q,K)
   d_k = query.size()[-1]
   attention_score = matmul_result/math.sqrt(d_k)                  # Scale
 
-  pre_softmax_attn = None
-  if prev_attn:
-    attention_score = attention_score + prev_attn
-    pre_softmax_attn = attention_score
-
   if mask is not None:
-    attention_score = attention_score.masked_fill(mask == 0, -1e4)
-
+    attention_score = attention_score.masked_fill(mask == 0, -1e20)
   # is Decoder
   if causal:
     query_len = query.size()[2]
-    # causal_mask = torch.tril(torch.ones(query_len, query_len))
-    # attention_score = attention_score.masked_fill_(causal_mask == 0, -1e4)
     i, j = torch.triu_indices(query_len, query_len, 1)
     attention_score[:, :, i, j] = -1e4
-
-  # Explicit Sparse Transformer
-  if explicit_topk and explicit_topk< attention_score.shape[-1]:
-    top, _ = attention_score.topk(explicit_topk, dim=-1) # return value, indices
-    vk = top[...,-1].unsqueeze(-1).expand_as(attention_score)
-    mask = attention_score < vk
-    attention_score.masked_fill_(mask,-1e4)
-    del mask
 
   softmax_attention_score = F.softmax(attention_score,dim=-1)  # 어텐션 값
   result = torch.matmul(softmax_attention_score,value)
 
-  return result, softmax_attention_score, pre_softmax_attn
+  return result, softmax_attention_score
+
 
 class MultiHeadAttention(nn.Module):
-  def __init__(self, head_num =8 , d_model = 512,dropout = 0.1, causal=False, explicit_sparse_attn_topk=None, residual_attn=False):
+  def __init__(self, n_head =8 , d_model = 512,dropout = 0.1, causal=False):
     super(MultiHeadAttention,self).__init__()
 
-    # print(d_model % head_num)
-    # assert d_model % head_num != 0 # d_model % head_num == 0 이 아닌경우 에러메세지 발생
-
-    self.head_num = head_num
+    self.n_head = n_head
     self.d_model = d_model
-    self.d_k = self.d_v = d_model // head_num
+    self.d_k = self.d_v = d_model // n_head
     self.causal = causal
-    self.explicit_topk = explicit_sparse_attn_topk
-    self.residual_attn = residual_attn # Residual Attention
 
     self.w_q = nn.Linear(d_model,d_model)
     self.w_k = nn.Linear(d_model,d_model)
@@ -67,47 +43,105 @@ class MultiHeadAttention(nn.Module):
     self.self_attention = self_attention
     self.dropout = nn.Dropout(p=dropout)
 
-  def forward(self, query, key, value, mask = None, prev_attn=None):
+  def forward(self, query, key, value, mask = None):
     if mask is not None:
       # Same mask applied to all h heads.
       mask = mask.unsqueeze(1)
 
     batche_num = query.size(0)
 
-    query = self.w_q(query).view(batche_num, -1, self.head_num, self.d_k).transpose(1, 2)
-    key = self.w_k(key).view(batche_num, -1, self.head_num, self.d_k).transpose(1, 2)
-    value = self.w_v(value).view(batche_num, -1, self.head_num, self.d_k).transpose(1, 2)
+    query = self.w_q(query).view(batche_num, -1, self.n_head, self.d_k).transpose(1, 2)
+    key = self.w_k(key).view(batche_num, -1, self.n_head, self.d_k).transpose(1, 2)
+    value = self.w_v(value).view(batche_num, -1, self.n_head, self.d_k).transpose(1, 2)
 
-    attention_result, attention_score, pre_softmax_attn = self.self_attention(query, key, value, mask, self.causal, self.explicit_topk, prev_attn)
-    attention_result = attention_result.transpose(1,2).contiguous().view(batche_num, -1, self.head_num * self.d_k)
+    attention_result, attention_score = self.self_attention(query, key, value, mask, self.causal)
+    attention_result = attention_result.transpose(1,2).contiguous().view(batche_num, -1, self.n_head * self.d_k)
     attn_output = self.w_o(attention_result)
 
-    return attn_output, pre_softmax_attn
 
-class Scale(nn.Module):
-  def __init__(self, scale_value, fn):
+    return attn_output
+
+def explicit_sparse_attention(q, k ,v, mask=None, causal=None, sparse_topk=8):
+    key_transose = torch.transpose(k,-2, -1)
+    dot = torch.matmul(q, key_transose)
+
+    head_dim = q.size()[-1]
+    dot = dot / head_dim ** 0.5
+
+    # Encoder input mask
+    if mask:
+      dot = dot.masked_fill(mask, 1e-4)
+
+    # Causal Look-Ahead mask
+    if causal:
+      q_length = q.size()[2]
+      i,j = torch.triu_indices(q_length, q_length,1)
+      dot[:, :, i, j] = -1e4
+
+    # Explicit sparse attention mask
+    if sparse_topk > 0:
+      topk, _ = dot.topk(sparse_topk,dim=-1)
+      vk = topk[...,-1].unsqueeze(-1).expand_as(dot)
+      explicit_sparse_mask = dot < vk # vk보다 낮은값들이 true
+      dot.masked_fill(explicit_sparse_mask, -1e4)
+
+    attn_score = F.softmax(dot,dim=-1)
+    attn_value = torch.matmul(attn_score, v)
+
+    return attn_value, attn_score
+
+class SparseTopkMultiHeadAttention(nn.Module):
+  def __init__(self, d_model, n_head, dropout=0.1, causal=False, sparse_topk=8):
     super().__init__()
-    self.scale_value = scale_value
-    self.fn = fn
-  def forward(self, input):
-    x = self.fn(input)
-    return x * self.scale_value
+    self.d_model=d_model
+    self.k_head_dim = d_model//n_head
+    self.v_head_dim = d_model//n_head
 
+    self.n_head=n_head
+    self.dropout=dropout
+    self.causal=causal
+    self.sparse_topk=sparse_topk
+
+    self.w_query = nn.Linear(d_model, d_model)
+    self.w_key = nn.Linear(d_model, d_model)
+    self.w_value = nn.Linear(d_model, d_model)
+
+    self.w_out = nn.Linear(d_model, d_model)
+    self.self_attention = explicit_sparse_attention
+
+    self.dropout=nn.Dropout(dropout)
+
+  def forward(self, q, k, v, mask=None):
+    if mask is not None:
+      mask = mask.unsqueeze(1)
+
+    batch_size = q.size()[0]
+    query = self.w_query(q).view(batch_size, -1, self.n_head, self.k_head_dim).transpose(1,2)
+    key = self.w_key(k).view(batch_size, -1, self.n_head, self.k_head_dim).transpose(1,2)
+    value = self.w_value(v).view(batch_size, -1, self.n_head, self.v_head_dim).transpose(1,2)
+
+    attn_value, attn_score = self.self_attention(q=query, k=key, v=value, mask=mask,sparse_topk=self.sparse_topk)
+    attn_value = attn_value.transpose(1,2).contiguous().view(batch_size, -1, self.n_head * self.k_head_dim)
+
+    attn_value = self.w_out(attn_value)
+
+    return self.dropout(attn_value)
 
 class FeedForward(nn.Module):
-  def __init__(self,d_model, dropout = 0.1, activation='gelu'):
-    super(FeedForward,self).__init__()
-    self.w_1 = nn.Linear(d_model, d_model*4)
-    self.w_2 = nn.Linear(d_model*4, d_model)
-    self.dropout = nn.Dropout(p=dropout)
-    
-    if activation =='gelu':
-        self.activation = F.gelu
-    elif activation == 'relu':
-        self.activation = F.relu
+    def __init__(self, d_model, dropout=0.1, activation='gelu'):
+        super(FeedForward, self).__init__()
+        self.w_1 = nn.Linear(d_model, d_model * 4)
+        self.w_2 = nn.Linear(d_model * 4, d_model)
+        self.dropout = nn.Dropout(p=dropout)
 
-  def forward(self, x):
-    return self.w_2(self.dropout(self.activation(self.w_1(x))))
+        if activation == 'gelu':
+            self.activation = F.gelu
+        elif activation == 'relu':
+            self.activation = F.relu
+
+    def forward(self, x):
+        return self.w_2(self.dropout(self.activation(self.w_1(x))))
+
 
 class LayerNorm(nn.Module):
   def __init__(self, features, eps=1e-6):
@@ -139,45 +173,76 @@ class Residual(nn.Module):
     return x + self.dropout(sublayer_output)
 
 class Decoder(nn.Module):
-  def __init__(self, d_model,head_num, dropout, rezero_use = True, explicit_sparse_attn_topk=8, macaron_net_use = False, residual_attn=False):
-    """
-    d_model: model hidden dimension
-    head_num: number of attention head
-    dropout: dropout probablity
-    rezero_use = True : ReZero use or not
-    explicit_sparse_attn_topk=8: Explicit sparse attention top-k. The origin paper suggest topk = 8. keep only the top 8 values before attention (softmax)
-    """
+  def __init__(self, d_model,n_head, dropout):
     super(Decoder,self).__init__()
+    self.masked_multi_head_attention = MultiHeadAttention(d_model= d_model, n_head= n_head,causal=True)
+    self.residual_1 = ResidualConnection(d_model,dropout=dropout)
 
-    # Macaron Architecture
-    self.macaron = macaron_net_use
+    self.feed_forward= FeedForward(d_model)
+    self.residual_2 = ResidualConnection(d_model,dropout=dropout)
 
-    if self.macaron:
-      self.macaron_net = Scale(0.5,FeedForward(d_model, d_model))
 
-    self.masked_multi_head_attention = MultiHeadAttention(d_model= d_model, head_num= head_num, causal=True, explicit_sparse_attn_topk=explicit_sparse_attn_topk, residual_attn=residual_attn)
-    self.residual_1 = ReZero(dropout) if rezero_use else Residual(dropout=dropout)
+  def forward(self, x):
+    x = self.residual_1(x, lambda x: self.masked_multi_head_attention(x, x, x))
+    x = self.residual_2(x, self.feed_forward)
+
+    return x
+
+class RZDecoder(nn.Module):
+  def __init__(self, d_model,n_head, dropout):
+    super().__init__()
+    self.masked_multi_head_attention = MultiHeadAttention(d_model=d_model, n_head=n_head, dropout=dropout)
+    self.rezero_1 = ReZero(dropout)
 
     self.feed_forward = FeedForward(d_model)
-    if self.macaron:
-      self.feed_forward = Scale(0.5, self.feed_forward)
-    self.residual_2 = ReZero(dropout) if rezero_use else Residual(dropout=dropout)
+    self.rezero_2 = ReZero(dropout)
+  def forward(self, x):
+    x_1 = self.masked_multi_head_attention(x,x,x)
+    x = x + self.rezero_1(x_1)
 
+    x_2 = self.feed_forward(x)
+    x = x + self.rezero_2(x_2)
 
-  def forward(self, input):
-    x, prev_attn = input
-    if self.macaron:
-      x = self.macaron_net(x)
-    # target = self.residual_1(target, lambda x: self.masked_multi_head_attention(x, x, x))
-    # target = self.residual_2(target, lambda x: self.feed_forward(x))
+    return x
 
-    x, pre_softmax_attn = self.masked_multi_head_attention(query=x, key=x, value=x, prev_attn=prev_attn)
-    x = self.residual_1(x)
+class SparseTopK_RZ_Decoder(nn.Module):
+  def __init__(self, d_model,n_head, dropout, sparse_topk=8):
+    super().__init__()
+    self.masked_multi_head_attention = SparseTopkMultiHeadAttention(d_model=d_model, n_head=n_head, dropout=dropout, causal=True, sparse_topk=sparse_topk)
+    self.rezero_1 = ReZero(dropout)
 
-    x = self.feed_forward(x)
-    x = self.residual_2(x)
+    self.feed_forward = FeedForward(d_model)
+    self.rezero_2 = ReZero(dropout)
 
-    return (x, pre_softmax_attn)
+  def forward(self, x):
+    x_1 = self.masked_multi_head_attention(x,x,x)
+    x = x + self.rezero_1(x_1)
+
+    x_2 = self.feed_forward(x)
+    x = x + self.rezero_2(x_2)
+
+    return x
+
+class ReZero(nn.Module):
+  def __init__(self, dropout):
+    super().__init__()
+    self.res_weight = nn.Parameter(torch.Tensor([0]))
+    self.dropout = nn.Dropout(dropout)
+
+  def forward(self, x):
+    x = self.dropout(x) * self.res_weight
+
+    return x
+
+class Embedding(nn.Module):
+  def __init__(self, vocab_size, dim, max_seq_len):
+    super().__init__()
+    self.token_emb = nn.Embedding(vocab_size, dim)
+    self.position_emb = PositionalEmbedding(dim, max_seq_len)
+  def forward(self, input_ids):
+    x= self.token_emb(input_ids)
+    x= x+self.position_emb(input_ids).type_as(x)
+    return x
 
 class PositionalEmbedding(nn.Module):
   def __init__(self, dim, max_seq_len):
@@ -187,53 +252,32 @@ class PositionalEmbedding(nn.Module):
   def forward(self, x):
     t = torch.arange(x.shape[1], device=x.device)
     return self.embedding(t)
-  
-  
-class ReZero(nn.Module):
-  def __init__(self, dropout):
-      super().__init__()
-      self.g = nn.Parameter(torch.zeros(1))
-      self.dropout = nn.Dropout(dropout)
-      
-  def forward(self, x):
-      x = x * self.g
-      return x + self.dropout(x)
 
-class Embedding(nn.Module):
-  def __init__(self, vocab_size, dim, max_seq_len):
-    self.token_emb = nn.Embedding(vocab_size, dim)
-    self.position_emb = PositionalEmbedding(dim, max_seq_len)
-  def forward(self, input_ids):
-    x= self.token_emb(input_ids)
-    x= x+self.position_emb(input_ids).type_as(x)
-
-    return x
-class GPTX(nn.Module):
+class GPT2(nn.Module):
   def __init__(self,
                vocab_size,
                dim,
                depth,
                max_seq_len,
-               head_num,
+               n_head,
                dropout=0.1):
-    super(GPTX, self).__init__()
+    super(GPT2, self).__init__()
 
     # Embedding
     self.embedding = Embedding(vocab_size, dim, max_seq_len)
 
     # Decoders
-    self.decoders = nn.Sequential([ Decoder(d_model=dim, head_num=head_num, dropout=dropout) for _ in range(depth) ])
+    self.decoders = nn.Sequential(*[Decoder(d_model=dim, n_head=n_head, dropout=dropout) for _ in range(depth)])
 
     self.norm = nn.LayerNorm(dim)
     self.lm_head = nn.Linear(dim, vocab_size, bias=False)
 
   def forward(self, input_ids, labels):
-    pre_attn = None
 
     x = self.embedding(input_ids)
-    x = self.decoders((x,pre_attn))
+    x = self.decoders(x)
 
-    lm_logits = self.lm_head(x[0])
+    lm_logits = self.lm_head(x)
 
     loss = None
     if labels is not None:
@@ -247,7 +291,7 @@ class GPTX(nn.Module):
 
     return lm_logits, loss
 
-class LitGPTX(pl.LightningModule):
+class LitGPT2(pl.LightningModule):
   def __init__(self,
                vocab_size,
                dim,
@@ -255,14 +299,15 @@ class LitGPTX(pl.LightningModule):
                max_seq_len,
                head_num,
                dropout=0.1):
-    super(LitGPTX, self).__init__()
+    super(LitGPT2, self).__init__()
 
     # Embedding
-    self.token_emb = nn.Embedding(vocab_size, dim)
-    self.position_emb = PositionalEmbedding(dim, max_seq_len)
+    self.embedding = Embedding(vocab_size, dim, max_seq_len)
 
     # Decoders
-    self.decoders = nn.ModuleList([Decoder(d_model=dim, head_num=head_num, dropout=dropout) for _ in range(depth)])
+    # self.decoders = nn.Sequential(*[Decoder(d_model=dim, n_head=head_num, dropout=dropout) for _ in range(depth)])
+    # self.decoders = nn.Sequential(*[RZDecoder(d_model=dim, n_head=head_num, dropout=dropout) for _ in range(depth)])
+    self.decoders = nn.Sequential(*[SparseTopK_RZ_Decoder(d_model=dim, n_head=head_num, dropout=dropout) for _ in range(depth)])
 
     self.norm = nn.LayerNorm(dim)
     self.lm_head = nn.Linear(dim, vocab_size, bias=False)
@@ -270,16 +315,12 @@ class LitGPTX(pl.LightningModule):
   def configure_optimizers(self):
     # DeepSpeedCPUAdam provides 5x, 7x speedup over torch.optim.adma(w)
     return DeepSpeedCPUAdam(model_params=self.parameters(),
-                            lr=1e-5)
+                            lr=5e-4)
     # return FusedAdam(self.parameters())
 
   def forward(self, input_ids, labels):
-    x = self.token_emb(input_ids)
-    x = x + self.position_emb(input_ids).type_as(x)
-
-    pre_attn = None
-    for decoder in self.decoders:
-      x, pre_attn = decoder(x, pre_attn)
+    x = self.embedding(input_ids)
+    x = self.decoders(x)
 
     lm_logits = self.lm_head(x)
 
@@ -328,7 +369,3 @@ class LitGPTX(pl.LightningModule):
     logs = {'avg_val_loss':avg_loss, 'avg_val_ppl':avg_ppl}
 
     return {'avg_val_loss': avg_loss, 'avg_val_ppl': avg_ppl, 'log': logs, 'progress_bar': logs}
-
-
-if __name__=='__main__':
-  pass

@@ -6,7 +6,7 @@ import logging
 import torch
 from tqdm import tqdm
 from torch.utils.data import Dataset
-from arg import ModelConfig
+from common.arg import ModelConfig
 from transformers import BertTokenizer
 
 class GPTXDataset(Dataset):
@@ -48,7 +48,7 @@ class GPTXDataset(Dataset):
 
         return inputs, labels
 
-class GPTXDataset(Dataset):
+class GPTXDatasetV2(Dataset):
     def __init__(self, tokenizer, max_len, dir_path):
         logging.info('Start pretraining data load!')
 
@@ -99,7 +99,7 @@ class GPTXDataset(Dataset):
         return inputs, labels
 
 if __name__=='__main__':
-    data_path = '../data/train/sample.txt'
+    data_path = '../data/sample.txt'
     config_path = '../train_pl/config.json'
     config = ModelConfig(config_path=config_path).get_config()
 

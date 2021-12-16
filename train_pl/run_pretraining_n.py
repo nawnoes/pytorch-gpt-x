@@ -7,7 +7,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from common.arg import ModelConfig
 from common.dataset import GPTXDatasetV2
-from model.transformer import LitGPT2
+from model.n_transformer import LitGPTX
 from transformers import BertTokenizer
 from torch.utils.data import random_split, DataLoader
 from pytorch_lightning.loggers import WandbLogger
@@ -55,7 +55,7 @@ if __name__=='__main__':
   dataset = gptx_dataset(config, tokenizer)
   train_dataloader, valid_dataloader = build_dataloader(dataset, config.batch_size,0.9)
 
-  model = LitGPT2(
+  model = LitGPTX(
         vocab_size=tokenizer.vocab_size,
         dim=config.dim,
         depth=config.depth,

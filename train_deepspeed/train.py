@@ -3,7 +3,7 @@ from tqdm import tqdm
 import datetime
 from torch.utils.data import DataLoader, random_split
 import deepspeed
-from common.dataset import GPTXDataset
+from common.dataset import GPTXDatasetV2
 from common.arg import ModelConfig
 from model.pipeline import GPTXPipe
 from transformers import BertTokenizer
@@ -14,7 +14,7 @@ import wandb
 import os
 import json
 import logging
-from model.transformer import LayerNorm
+from model.n_transformer import LayerNorm
 
 def pretrain(arg):
     """Main Train
@@ -31,7 +31,7 @@ def pretrain(arg):
 
     tokenizer = BertTokenizer(vocab_file=config.vocab_path, do_lower_case=False)
 
-    dataset = GPTXDataset(tokenizer, config.max_seq_len, config.data_path)
+    dataset = GPTXDatasetV2(tokenizer, config.max_seq_len, config.data_path)
 
     logging.basicConfig(filename=f'{config.log_dir}/{config.model_name}-{datetime.now().date()}.log', level=logging.INFO)
     wandb.init(project="gpt-x")

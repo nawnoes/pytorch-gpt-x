@@ -13,7 +13,7 @@ import os
 import json
 import logging
 from datetime import datetime
-from common.dataset import GPTXDataset
+from common.dataset import GPTXDatasetV2
 from common.arg import ModelConfig
 from model.pipeline import GPTXPipe
 from ds_util import get_argument_parser
@@ -185,7 +185,7 @@ def main():
     tokenizer = BertTokenizer(vocab_file=config.vocab_path, do_lower_case=False)
 
     # Dataset
-    dataset = GPTXDataset(tokenizer, config.max_seq_len, config.data_path)
+    dataset = GPTXDatasetV2(tokenizer, config.max_seq_len, config.data_path)
 
     # Logging
     logging.basicConfig(filename=f'{config.log_dir}/{config.model_name}-{datetime.now().date()}.log', level=logging.INFO)

@@ -1,0 +1,23 @@
+{
+  "vocab_path" : "../data/vocab-v1.txt",
+  "data_path" :"../data/train/" ,
+  "checkpoint_path" : "../checkpoints",
+  "model_name": "gpt2",
+  "vocab_size": 22000,
+  "dim": 256,
+  "depth": 6,
+  "n_head": 32,
+  "max_seq_len" : 1024,
+  "dropout_prob": 0.3,
+  "weight_decay": 0.01,
+  "epochs": 20,
+  "batch_size" : 2,
+  "lr": 5e-4,
+  "adam_epsilon":1e-6,
+  "ckpt_steps" : 100000,
+  "log_steps": 1,
+  "log_dir": "../",
+  "gradient_accumulation_steps": 8,
+  "fp16": true,
+  "fp16_opt_level": "O2"
+}

@@ -32,7 +32,7 @@ trainer = pl.Trainer(gpus=config.gpu,
 ## TODO
 
 - [x] ~~ReZero~~
-- [x] ~~RealFormer, Residual Attention~~
+- [x] ~~RealFormer, Residual Attention~~ 
 - [x] ~~Macaron architectures~~
 - [x] ~~Macaron architectures - layer Scale 0.5~~
 - [x] ~~Explicit Sparse Transformer~~
@@ -56,9 +56,7 @@ So this repository try to use DeepSpeed for training extremely big model.
 | GPT-3 1.3B | 1.3B     | 24      | 2048    | 24      | 128    |     1M     | 2.0 x 10^-4   |
 
 ## Progress
-- [x] pytorch-lighting
-- [x] apply deepspeed
-- [ ] test pretraining
+- ~~Rezero, Explicit Sparse attn convergence~~
 
 ## Issue
 - `AttributeError: module 'deepspeed' has no attribute 'zero'`: reinstall deepspeed
