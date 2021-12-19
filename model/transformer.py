@@ -205,7 +205,7 @@ class RZDecoder(nn.Module):
 
     return x
 
-class SparseTopK_RZ_Decoder(nn.Module):
+class ReZeroSparseTopkDecoder(nn.Module):
   def __init__(self, d_model,n_head, dropout, sparse_topk=8):
     super().__init__()
     self.masked_multi_head_attention = SparseTopkMultiHeadAttention(d_model=d_model, n_head=n_head, dropout=dropout, causal=True, sparse_topk=sparse_topk)
@@ -291,6 +291,44 @@ class GPT2(nn.Module):
 
     return lm_logits, loss
 
+class ReZeroSparseTopkGPT(nn.Module):
+  def __init__(self,
+               vocab_size,
+               dim,
+               depth,
+               max_seq_len,
+               n_head,
+               dropout=0.1):
+    super(ReZeroSparseTopkGPT, self).__init__()
+
+    # Embedding
+    self.embedding = Embedding(vocab_size, dim, max_seq_len)
+
+    # Decoders
+    self.decoders = nn.Sequential(*[ReZeroSparseTopkDecoder(d_model=dim, n_head=n_head, dropout=dropout) for _ in range(depth)])
+
+    self.norm = nn.LayerNorm(dim)
+    self.lm_head = nn.Linear(dim, vocab_size, bias=False)
+
+  def forward(self, input_ids, labels):
+
+    x = self.embedding(input_ids)
+    x = self.decoders(x)
+
+    lm_logits = self.lm_head(x)
+
+    loss = None
+    if labels is not None:
+      # Shift so that tokens < n predict n
+      shift_logits = lm_logits[..., :-1, :].contiguous()
+      shift_labels = labels[..., 1:].contiguous()
+
+      # Flatten the tokens
+      loss_fn = CrossEntropyLoss()
+      loss = loss_fn(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+
+    return lm_logits, loss
+
 class LitGPT2(pl.LightningModule):
   def __init__(self,
                vocab_size,
@@ -307,7 +345,7 @@ class LitGPT2(pl.LightningModule):
     # Decoders
     # self.decoders = nn.Sequential(*[Decoder(d_model=dim, n_head=head_num, dropout=dropout) for _ in range(depth)])
     # self.decoders = nn.Sequential(*[RZDecoder(d_model=dim, n_head=head_num, dropout=dropout) for _ in range(depth)])
-    self.decoders = nn.Sequential(*[SparseTopK_RZ_Decoder(d_model=dim, n_head=head_num, dropout=dropout) for _ in range(depth)])
+    self.decoders = nn.Sequential(*[ReZeroSparseTopkDecoder(d_model=dim, n_head=head_num, dropout=dropout) for _ in range(depth)])
 
     self.norm = nn.LayerNorm(dim)
     self.lm_head = nn.Linear(dim, vocab_size, bias=False)
