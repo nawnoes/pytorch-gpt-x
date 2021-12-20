@@ -109,7 +109,7 @@ def get_model(config):
     model = ReZroSparseTopkGPTPipe(vocab_size= config.vocab_size,
                      dim = config.dim,
                      depth = config.depth,
-                     head_num= config.n_head,
+                     n_head= config.n_head,
                      max_seq_len= config.max_seq_len)
     model = model.to_layer()
     model = PipelineModule(layers=model,
