@@ -22,3 +22,11 @@ class ReZroSparseTopkGPTPipe(ReZeroSparseTopkGPT):
         ]
 
         return layers
+
+    def forward(self, input_ids):
+        x = self.embedding(input_ids)
+        x = self.decoders(x)
+
+        lm_logits = self.lm_head(x)
+
+        return lm_logits

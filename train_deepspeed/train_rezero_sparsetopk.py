@@ -1,8 +1,8 @@
 import sys
 sys.path.append('../')
+
 import torch
-from tqdm import tqdm
-import datetime
+from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader, random_split
 import deepspeed
 from common.dataset import GPTXDatasetV2
@@ -14,9 +14,7 @@ from transformers import get_cosine_schedule_with_warmup
 from deepspeed.pipe import PipelineModule
 import wandb
 import os
-import json
 import logging
-from model.n_transformer import LayerNorm
 
 def pretrain():
     """Main Train
@@ -62,6 +60,18 @@ def pretrain():
           train_dataloader=train_dataloader)
 
     evaluate(config, model)
+def cross_entropy(lm_logits, labels):
+    loss = None
+    if labels is not None:
+        # Shift so that tokens < n predict n
+        shift_logits = lm_logits[..., :-1, :].contiguous()
+        shift_labels = labels[..., 1:].contiguous()
+
+        # Flatten the tokens
+        loss_fn = CrossEntropyLoss()
+        loss = loss_fn(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+
+    return loss
 def train(config,
           model,
           train_dataloader):
@@ -70,7 +80,7 @@ def train(config,
     model.train()
 
     for _ in range(config.max_train_step):
-        lm_logit, loss = model.train_batch(data_iter=train_dataloader)
+        loss = model.train_batch(data_iter=train_dataloader)
         wandb.log({'train': {'loss': loss.item(), 'perplexity': torch.exp(loss)}})
 
     train_result = {"loss": loss.item(), "ppl": torch.exp(loss)}
@@ -105,6 +115,7 @@ def get_model(config):
                      max_seq_len= config.max_seq_len)
     model = model.to_layer()
     model = PipelineModule(layers=model,
+                           loss_fn=cross_entropy,
                            num_stages=config.num_stages)
     return model
 
