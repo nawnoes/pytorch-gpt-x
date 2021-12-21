@@ -37,7 +37,8 @@ def pretrain():
 
     tokenizer = BertTokenizer(vocab_file=config.vocab_path, do_lower_case=False)
 
-    dataset = GPTXDatasetV2(tokenizer, config.max_seq_len, config.data_path)
+    # dataset = GPTXDatasetV2(tokenizer, config.max_seq_len, config.data_path)
+    dataset = gptx_datset(config, tokenizer, GPTXDatasetV2)
 
     wandb.init(project="rezero_sparsetopk_gpt")
 
@@ -53,44 +54,35 @@ def pretrain():
         optimizer=optimizer,
         args=args,
         lr_scheduler=lr_scheduler,
-        dist_init_required=False,
-        training_data=train_dataloader,
-        eval_dataloader = eval_dataloader
-    )
+        dist_init_required=False)
 
 
     train(config=config,
           model=model,
-          optimizer=optimizer,
-          lr_scheduler=lr_scheduler,
-          train_dataloader=train_dataloader,
-          eval_dataloader=eval_dataloader)
+          train_dataloader=train_dataloader)
 
     evaluate(config, model)
 def train(config,
           model,
-          optimizer,
-          lr_scheduler,
-          train_dataloader,
-          eval_dataloader):
+          train_dataloader):
 
     # Set train mode
     model.train()
 
     for _ in range(config.max_train_step):
-        lm_logit, loss = model.train_batch()
+        lm_logit, loss = model.train_batch(data_iter=train_dataloader)
         wandb.log({'train': {'loss': loss.item(), 'perplexity': torch.exp(loss)}})
 
     train_result = {"loss": loss.item(), "ppl": torch.exp(loss)}
 
     return train_result
 
-def evaluate(config, model):
+def evaluate(config, model, eval_dataloader):
     model.eval()
 
     with torch.no_grad():
         for _ in range(config.max_eval_step):
-            loss = model.eval_batch(return_logit=False)
+            loss = model.eval_batch(data_iter=eval_dataloader, return_logit=False)
             wandb.log({'eval': {'loss': loss.item(), 'perplexity': torch.exp(loss)}})
 
     eval_result = {"loss": loss.item(), "ppl": torch.exp(loss)}
@@ -116,31 +108,24 @@ def get_model(config):
                            num_stages=config.num_stages)
     return model
 
-def get_model_params(config, model):
-    weight_decay_params = {"params": [], 'weight_decay': config['weight_decay']}
-    no_weight_decay_params = {"params": [], 'weight_decay': 0.0}
-    for module in model:
-        if isinstance(module,LayerNorm) or config.weight_decay==0.0:
-            no_weight_decay_params["params"].extend(
-                [p for p in list(module._parameters.values()) if p is not None]
-            )
-        else:
-            weight_decay_params["params"]\
-                .extend([p for n, p in list(module._parameters.items()) if p is not None and n != "bias"])
-            no_weight_decay_params["params"]\
-                .extend([p for n, p in list(module._parameters.items()) if p is not None and n == "bias"])
-    if config.weight_decay==0.0:
-        return [no_weight_decay_params]
+def get_model_params( model):
+    named_parameter = list(model.named_parameters())
+    no_decay = ['bias', 'LayerNorm']
 
-    return weight_decay_params, no_weight_decay_params
+    optimizer_grouped_parameters = [
+        {'params': [p for n, p in named_parameter if not any(nd in n for nd in no_decay)],
+         'weight_decay': 0.01},
+        {'params': [p for n, p in named_parameter if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+    ]
+    return optimizer_grouped_parameters
 
 def get_optimizer(config, model):
     model_params = get_model_params(model)
-    if config['optimizer']['type']=='cpu_adam':
+    if config.optimizer['type']=='cpu_adam':
         from deepspeed.ops.adam import DeepSpeedCPUAdam
         optimizer = DeepSpeedCPUAdam(model_params,
                                               **config.optimizer['params'])
-    elif config['optimizer']['type']=='adam':
+    elif config.optimizer['type']=='adam':
         from deepspeed.ops.adam import FusedAdam as Adam
         optimizer = Adam(model_params,
                          **config.optimizer['params'])
@@ -148,7 +133,7 @@ def get_optimizer(config, model):
 
 def get_learning_rate_scheduler(optimizer, config):
     num_iter = config.max_train_step
-    warmup_num_iter= num_iter * config['warmup_iter']
+    warmup_num_iter= num_iter * config.warmup_iter
     lr_scheduler = get_cosine_schedule_with_warmup(optimizer=optimizer,
                                                    num_warmup_steps=warmup_num_iter,
                                                    num_training_steps=num_iter)
@@ -164,7 +149,23 @@ def build_dataloaders(config, dataset, train_test_split=0.1, train_shuffle=True,
     logging.info(f'''train_dataloader size: {len(train_loader.dataset)} | shuffle: {train_shuffle}
                      eval_dataloader  size: {len(eval_loader.dataset)} | shuffle: {eval_shuffle}''')
 
-    return train_loader, eval_loader
+    return iter(train_loader), iter(eval_loader)
+
+def gptx_datset(config, tokenizer, dataset_obj):
+  cache_data_path = f'{config.cache_path}/{config.model_name}.pickle'
+  cache_dir_path= os.path.dirname(cache_data_path)
+
+  if os.path.exists(cache_data_path): # 캐시 데이터가 존재하는 경우
+    dataset = torch.load(cache_data_path)
+    return dataset
+  else: # 캐시 데이터가 없는 경우
+    if not os.path.exists(cache_dir_path):
+      os.makedirs(cache_dir_path) # 캐시 디렉토리 경로 생성
+
+    dataset = dataset_obj(tokenizer, config.max_seq_len, config.data_path)
+    torch.save(dataset, cache_data_path) # 데이터 저장
+
+    return dataset
 
 def get_arguments():
     parser = get_argument_parser()

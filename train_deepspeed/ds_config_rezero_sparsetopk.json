@@ -1,18 +1,8 @@
 {
-  "train_batch_size": 1024,
+  "train_batch_size": 512,
   "gradient_accumulation_steps": 256,
+  "train_micro_batch_size_per_gpu" : 2,
+
   "steps_per_print": 1,
-  "gradient_clipping": 1.0,
-  "fp16": {
-    "enabled": true
-  },
-  "zero_optimization": {
-    "stage": 2,
-    "allgather_partitions": true,
-    "reduce_scatter": true,
-    "allgather_bucket_size": 50000000,
-    "reduce_bucket_size": 50000000,
-    "overlap_comm": true
-  },
-  "device": "cuda"
+  "wall_clock_breakdown" : false
 }

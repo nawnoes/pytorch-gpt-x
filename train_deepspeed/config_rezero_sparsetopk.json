@@ -2,6 +2,7 @@
   "vocab_path" : "../data/vocab-v1.txt",
   "data_path" :"../data/train/" ,
   "checkpoint_path" : "../checkpoints",
+  "cache_path": "../checkpoints",
   "model_name": "rezero_sparsetopk_gpt",
   "vocab_size": 22000,
   "dim": 2560,
@@ -26,5 +27,5 @@
   "ckpt_steps" : 1000,
   "is_pipe_parallel": true,
   "num_stages": 2,
-  "warup_iter": 0.1
+  "warmup_iter": 0.1
 }
