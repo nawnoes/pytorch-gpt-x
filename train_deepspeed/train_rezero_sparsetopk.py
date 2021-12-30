@@ -15,6 +15,19 @@ from deepspeed.pipe import PipelineModule
 import wandb
 import os
 import logging
+from itertools import cycle
+
+
+logger = logging.getLogger("ReZeroSparsetopkGPTX")
+log_formatter = logging.Formatter(
+"%(asctime)s %(levelname)s [%(name)s] [%(filename)s:%(lineno)d] - %(message)s"
+)
+stream_handler = logging.StreamHandler()
+stream_handler.setFormatter(log_formatter)
+
+logger.addHandler(stream_handler)
+logger.setLevel(logging.INFO)
+
 
 def pretrain():
     """Main Train
@@ -23,30 +36,36 @@ def pretrain():
     3) train the model
     """
     args = get_arguments()
-
+    logger.info('set seed')
     torch.manual_seed(9)
     deepspeed.runtime.utils.set_random_seed(9)
 
+    logger.info('initialize NCCL & CUDA')
     deepspeed.init_distributed(dist_backend='nccl')
     args.local_rank = int(os.environ['LOCAL_RANK'])
-    torch.cuda.set_device(-1) # local rank passed from distributed launcher
+    torch.cuda.set_device(args.local_rank) # local rank passed from distributed launcher
 
     config = ModelConfig(config_path=args.config).get_config()
 
     tokenizer = BertTokenizer(vocab_file=config.vocab_path, do_lower_case=False)
 
+    logger.info('load gptx dataset')
     # dataset = GPTXDatasetV2(tokenizer, config.max_seq_len, config.data_path)
     dataset = gptx_datset(config, tokenizer, GPTXDatasetV2)
 
     wandb.init(project="rezero_sparsetopk_gpt")
 
     train_dataloader, eval_dataloader = build_dataloaders(config, dataset, train_test_split=0.1)
+    logger.info(f'train data length: {len(train_dataloader)}')
+    logger.info(f'eval data length : {len(eval_dataloader)}')
 
     config.max_train_step = len(train_dataloader) * config.epoch
     config.max_eval_step = len(eval_dataloader)
 
+    logger.info('set GPTX model, optimizer, scheduler')
     model, optimizer, lr_scheduler = setup_model_and_optimizer(config)
 
+    logger.info('deepspeed initialize')
     model,optimizer, _, lr_scheduler = deepspeed.initialize(
         model=model,
         optimizer=optimizer,
@@ -54,12 +73,13 @@ def pretrain():
         lr_scheduler=lr_scheduler,
         dist_init_required=False)
 
-
+    logger.info('start training')
     train(config=config,
           model=model,
-          train_dataloader=train_dataloader)
+          train_dataloader=cycle(train_dataloader))
 
-    evaluate(config, model)
+    evaluate(config, model, eval_dataloader=cycle(eval_dataloader))
+    
 def cross_entropy(lm_logits, labels):
     loss = None
     if labels is not None:
@@ -78,8 +98,10 @@ def train(config,
 
     # Set train mode
     model.train()
-
-    for _ in range(config.max_train_step):
+    
+    logger.info('start pretrainig iteration')
+    
+    for i in range(config.max_train_step):
         loss = model.train_batch(data_iter=train_dataloader)
         wandb.log({'train': {'loss': loss.item(), 'perplexity': torch.exp(loss)}})
 
@@ -92,7 +114,7 @@ def evaluate(config, model, eval_dataloader):
 
     with torch.no_grad():
         for _ in range(config.max_eval_step):
-            loss = model.eval_batch(data_iter=eval_dataloader, return_logit=False)
+            loss = model.eval_batch(data_iter=eval_dataloader, return_logits=False)
             wandb.log({'eval': {'loss': loss.item(), 'perplexity': torch.exp(loss)}})
 
     eval_result = {"loss": loss.item(), "ppl": torch.exp(loss)}
@@ -133,9 +155,12 @@ def get_model_params( model):
 def get_optimizer(config, model):
     model_params = get_model_params(model)
     if config.optimizer['type']=='cpu_adam':
-        from deepspeed.ops.adam import DeepSpeedCPUAdam
-        optimizer = DeepSpeedCPUAdam(model_params,
-                                              **config.optimizer['params'])
+        # from deepspeed.ops.adam import DeepSpeedCPUAdam
+        # optimizer = DeepSpeedCPUAdam(model_params,
+        #                             **config.optimizer['params'])
+        cpu_adam_optimizer = torch.optim.Adam
+        optimizer = cpu_adam_optimizer(model_params,
+                                    **config.optimizer['params'])
     elif config.optimizer['type']=='adam':
         from deepspeed.ops.adam import FusedAdam as Adam
         optimizer = Adam(model_params,
@@ -160,7 +185,9 @@ def build_dataloaders(config, dataset, train_test_split=0.1, train_shuffle=True,
     logging.info(f'''train_dataloader size: {len(train_loader.dataset)} | shuffle: {train_shuffle}
                      eval_dataloader  size: {len(eval_loader.dataset)} | shuffle: {eval_shuffle}''')
 
-    return iter(train_loader), iter(eval_loader)
+    # return iter(train_loader), iter(eval_loader)
+
+    return train_loader, eval_loader
 
 def gptx_datset(config, tokenizer, dataset_obj):
   cache_data_path = f'{config.cache_path}/{config.model_name}.pickle'
