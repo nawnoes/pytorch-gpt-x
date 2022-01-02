@@ -1,5 +1,5 @@
 # GPT-X
-Implementation of autoregressive lanague model(like GPT-2,3) using improved Transformer and deepspeed pipeline parallelism. 
+Implementation of autoregressive language model(like GPT) using improved Transformer and DeepSpeed pipeline parallelism.
 
 ## Improved Transformer
 Transformer used in this repository attempts to improve the transformer using the additional modules below.
