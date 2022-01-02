@@ -1,4 +1,6 @@
 import sys
+
+from torch.optim import lr_scheduler
 sys.path.append('../')
 
 import torch
@@ -114,7 +116,7 @@ def evaluate(config, model, eval_dataloader):
 
     with torch.no_grad():
         for _ in range(config.max_eval_step):
-            loss = model.eval_batch(data_iter=eval_dataloader, return_logits=False)
+            loss = model.eval_batch(data_iter=eval_dataloader)
             wandb.log({'eval': {'loss': loss.item(), 'perplexity': torch.exp(loss)}})
 
     eval_result = {"loss": loss.item(), "ppl": torch.exp(loss)}
@@ -155,12 +157,9 @@ def get_model_params( model):
 def get_optimizer(config, model):
     model_params = get_model_params(model)
     if config.optimizer['type']=='cpu_adam':
-        # from deepspeed.ops.adam import DeepSpeedCPUAdam
-        # optimizer = DeepSpeedCPUAdam(model_params,
-        #                             **config.optimizer['params'])
-        cpu_adam_optimizer = torch.optim.Adam
-        optimizer = cpu_adam_optimizer(model_params,
-                                    **config.optimizer['params'])
+        from deepspeed.ops.adam import DeepSpeedCPUAdam
+        optimizer = DeepSpeedCPUAdam(model_params,
+                                              **config.optimizer['params'])
     elif config.optimizer['type']=='adam':
         from deepspeed.ops.adam import FusedAdam as Adam
         optimizer = Adam(model_params,
@@ -169,10 +168,12 @@ def get_optimizer(config, model):
 
 def get_learning_rate_scheduler(optimizer, config):
     num_iter = config.max_train_step
-    warmup_num_iter= num_iter * config.warmup_iter
-    lr_scheduler = get_cosine_schedule_with_warmup(optimizer=optimizer,
-                                                   num_warmup_steps=warmup_num_iter,
-                                                   num_training_steps=num_iter)
+    lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer=optimizer,
+                                                       max_lr=config.optimizer['params']['lr'],
+                                                       total_steps=num_iter,
+                                                       pct_start=config.warmup_iter,
+                                                       anneal_strategy='cos'# or 'linear'
+                                                       )
     return lr_scheduler
 
 def build_dataloaders(config, dataset, train_test_split=0.1, train_shuffle=True, eval_shuffle=True):

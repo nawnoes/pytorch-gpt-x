@@ -1,34 +1,93 @@
 # GPT-X
-Train GPT-X on V100(16GB) Using improved Transformer. 
+Implementation of autoregressive lanague model(like GPT-2,3) using improved Transformer and deepspeed pipeline parallelism. 
 
-## Model
-### Transformer Additional Module
-#### ① Rezero
+## Improved Transformer
+Transformer used in this repository attempts to improve the transformer using the additional modules below.
+
+### ① Rezero
 Rezero Is All You Need [link](https://arxiv.org/abs/2003.04887)
 
-![](./images/rezero.png)
-#### ② Explicit Sparse Transformer
+### ② Explicit Sparse Transformer
 Explicit Sparse Transformer: Concentrated Attention Through Explicit Selection [link](https://arxiv.org/abs/1912.11637)
 
-![](./images/explicit-sparse-attention.png)
-#### ③ Macaron Architecture
+### ③ Macaron Architecture
 Understanding and Improving Transformer
 From a Multi-Particle Dynamic System Point of View [link](https://arxiv.org/pdf/1906.02762.pdf)
 
-![](./images/macaron.png)
-#### ④ RealFormer, Residual Attention
+### ④ RealFormer, Residual Attention
 RealFormer [link](https://arxiv.org/abs/2012.11747)
 
-![](./images/residual_attn.png)
-## Train
-### DeepSpeed
-DeepSpeed is a deep learning training optimization library, providing the means to train massive billion parameter models at scale.
+### ⑤ ALiBi Position Embedding
+ALiBi Position Embedding
+
+## Model Description
+
+## DeepSpeed
+DeepSpeed is a deep learning training optimization library, providing the means to train massive billion parameter models at scale.  
+  
+### Piepline Parallelism
+You can train 1B GPT-X Model using deepspeed pipeline parallelism.
+#### GPU Usage
 ```
-trainer = pl.Trainer(gpus=config.gpu,
-                       plugins=config.deepspeed_plugin,
-                       precision=config.precision,
-                       ...)
++-----------------------------------------------------------------------------+
+| NVIDIA-SMI 418.39       Driver Version: 418.39       CUDA Version: 10.1     |
+|-------------------------------+----------------------+----------------------+
+| GPU  Name        Persistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp  Perf  Pwr:Usage/Cap|         Memory-Usage | GPU-Util  Compute M. |
+|===============================+======================+======================|
+|   0  Tesla V100-PCIE...  On   | 00000000:00:06.0 Off |                    0 |
+| N/A   42C    P0    44W / 250W |  16076MiB / 16130MiB |     99%      Default |
++-------------------------------+----------------------+----------------------+
+|   1  Tesla V100-PCIE...  On   | 00000000:00:07.0 Off |                    0 |
+| N/A   45C    P0   168W / 250W |  16060MiB / 16130MiB |     99%      Default |
++-------------------------------+----------------------+----------------------+
+
++-----------------------------------------------------------------------------+
+| Processes:                                                       GPU Memory |
+|  GPU       PID   Type   Process name                             Usage      |
+|=============================================================================|
+|    0     29525      C   /home/ubuntu/anaconda3/bin/python          16065MiB |
+|    1     29528      C   /home/ubuntu/anaconda3/bin/python          16049MiB |
++-----------------------------------------------------------------------------+
 ```
+#### Pipeline Parallelism Log
+```
+[2021-12-31 12:24:20,042] [INFO] [engine.py:93:__init__] CONFIG: micro_batches=4 micro_batch_size=1
+[2021-12-31 12:24:20,094] [INFO] [engine.py:151:__init__] RANK=1 STAGE=1 LAYERS=12 [11, 23) STAGE_PARAMS=548560916 (548.561M) TOTAL_PARAMS=1099214888 (1099.215M) UNIQUE_PARAMS=1099214888 (1099.215M)
+[2021-12-31 12:24:20,094] [INFO] [engine.py:151:__init__] RANK=0 STAGE=0 LAYERS=11 [0, 11) STAGE_PARAMS=550653972 (550.654M) TOTAL_PARAMS=1099214888 (1099.215M) UNIQUE_PARAMS=1099214888 (1099.215M)
+```
+
+```
+[2021-12-31 12:24:08,793] [INFO] [module.py:365:_partition_layers] Partitioning pipeline stages with method parameters
+stage=0 layers=11
+     0: Embedding
+     1: ReZeroSparseTopkDecoder
+     2: ReZeroSparseTopkDecoder
+     3: ReZeroSparseTopkDecoder
+     4: ReZeroSparseTopkDecoder
+     5: ReZeroSparseTopkDecoder
+     6: ReZeroSparseTopkDecoder
+     7: ReZeroSparseTopkDecoder
+     8: ReZeroSparseTopkDecoder
+     9: ReZeroSparseTopkDecoder
+    10: ReZeroSparseTopkDecoder
+stage=1 layers=12
+    11: ReZeroSparseTopkDecoder
+    12: ReZeroSparseTopkDecoder
+    13: ReZeroSparseTopkDecoder
+    14: ReZeroSparseTopkDecoder
+    15: ReZeroSparseTopkDecoder
+    16: ReZeroSparseTopkDecoder
+    17: ReZeroSparseTopkDecoder
+    18: ReZeroSparseTopkDecoder
+    19: ReZeroSparseTopkDecoder
+    20: ReZeroSparseTopkDecoder
+    21: LayerNorm
+    22: Linear
+  loss: cross_entropy
+```
+
+
 ## TODO
 
 - [x] ~~ReZero~~
@@ -38,13 +97,11 @@ trainer = pl.Trainer(gpus=config.gpu,
 - [x] ~~Explicit Sparse Transformer~~
 - [x] ~~torch lightning~~
 - [x] ~~Deepspeed train on single GPU~~
-- [ ] apply wandb
-- [ ] Deepspeed pipeline parallel trainig on 2 V100 GPU with 16GB Memory
+- [x] apply wandb
+- [x] Deepspeed pipeline parallel trainig on 2 V100 GPU with 16GB Memory
 
 ## Parameter For Few-shot
-The 175B parameter model is very large, but a large model is needed for Few-Shot Learning.
-So this repository try to use DeepSpeed for training extremely big model.
-![](https://img1.daumcdn.net/thumb/R1280x0/?scode=mtistory2&fname=https%3A%2F%2Fblog.kakaocdn.net%2Fdn%2FbcCkzC%2FbtqEzhJ441q%2FCr6nzgvZHP4cDBj6bksKf0%2Fimg.png)
+GPT-3 has a 175B parameter, and the size of the model is important for few-shot learning. In this repository, I try to pretrain language model as large as possible using 2 V100 GPUs.
 
 ## GPT-3 Config
 | model_name | n_params | n_layer | d_model | n_heads | d_head | batch_size | learning_rate |
@@ -54,9 +111,6 @@ So this repository try to use DeepSpeed for training extremely big model.
 | GPT-3 6.7B | 6.7B     | 32      | 4096    | 32      | 128    |     2M     | 1.2 x 10^-4   |
 | GPT-3 2.7B | 2.7B     | 32      | 2560    | 32      | 80     |     1M     | 1.6 x 10^-4   |
 | GPT-3 1.3B | 1.3B     | 24      | 2048    | 24      | 128    |     1M     | 2.0 x 10^-4   |
-
-## Progress
-- ~~Rezero, Explicit Sparse attn convergence~~
 
 ## Issue
 - `AttributeError: module 'deepspeed' has no attribute 'zero'`: reinstall deepspeed

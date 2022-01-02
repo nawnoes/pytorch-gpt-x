@@ -11,7 +11,7 @@
     "contiguous_gradients": true,
     "cpu_offload": false
   },
-  "steps_per_print": 1,
+  "steps_per_print": 100,
   "wall_clock_breakdown" : false,
   "fp16": {
     "enabled": true,

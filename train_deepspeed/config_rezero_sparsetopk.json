@@ -6,7 +6,7 @@
   "model_name": "rezero_sparsetopk_gpt",
   "vocab_size": 22000,
   "dim": 2048,
-  "depth": 22,
+  "depth": 20,
   "n_head": 16,
   "max_seq_len" : 1024,
   "dropout_prob": 0.3,
