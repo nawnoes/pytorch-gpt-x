@@ -3,30 +3,25 @@ Implementation of autoregressive lanague model(like GPT-2,3) using improved Tran
 
 ## Improved Transformer
 Transformer used in this repository attempts to improve the transformer using the additional modules below.
-
-### ① Rezero
-Rezero Is All You Need [link](https://arxiv.org/abs/2003.04887)
-
-### ② Explicit Sparse Transformer
-Explicit Sparse Transformer: Concentrated Attention Through Explicit Selection [link](https://arxiv.org/abs/1912.11637)
-
-### ③ Macaron Architecture
-Understanding and Improving Transformer
-From a Multi-Particle Dynamic System Point of View [link](https://arxiv.org/pdf/1906.02762.pdf)
-
-### ④ RealFormer, Residual Attention
-RealFormer [link](https://arxiv.org/abs/2012.11747)
-
-### ⑤ ALiBi Position Embedding
-ALiBi Position Embedding
+| Name                        | Description                                                                                | Link                                           |
+|-----------------------------|--------------------------------------------------------------------------------------------|------------------------------------------------|
+| Rezero                      | Rezero Is All You Need                                                                     | [link](https://arxiv.org/abs/2003.04887)       |
+| Explicit Sparse Transformer | Concentrated Attention Through Explicit Selection                                          | [link]( https://arxiv.org/abs/1912.11637 )     |
+| Macaron Architecture        | Understanding and Improving Transformer From a Multi-Particle Dynamic System Point of View | [link]( https://arxiv.org/pdf/1906.02762.pdf ) |
+| RealFormer                  | Residual Attention                                                                         | [link]( https://arxiv.org/abs/2012.11747 )     |
+| ALiBi Position Embedding    | effective relative positional encoding                                                     |                                                |
 
 ## Model Description
+| model_name | n_params | n_layer | d_model | n_heads | vocab_size | max_seq_len | learning_rate |
+|:----------:|----------|---------|---------|---------|------------|-------------|---------------|
+|  GPT-X 1B  |   1B     | 20      | 2048    | 16      | 22000      | 1024        | 2.0 x 10^-4   |
 
 ## DeepSpeed
 DeepSpeed is a deep learning training optimization library, providing the means to train massive billion parameter models at scale.  
   
 ### Piepline Parallelism
-You can train 1B GPT-X Model using deepspeed pipeline parallelism.
+You can train 1B GPT-X Model using deepspeed pipeline parallelism on 2 V100 GPU(16G).
+
 #### GPU Usage
 ```
 +-----------------------------------------------------------------------------+
