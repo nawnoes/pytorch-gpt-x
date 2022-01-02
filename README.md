@@ -143,3 +143,8 @@ GPT-3 has a 175B parameter, and the size of the model is important for few-shot 
 
 **DeepSpeed**
 - [PyTorch lightning DeepSpeed](https://pytorch-lightning.readthedocs.io/en/stable/advanced/advanced_gpu.html#deepspeed)
+
+**Pipeline Parallelism**
+- [DeepSpeed Pipeline Parallelism](https://www.deepspeed.ai/tutorials/pipeline/)
+- [DeepSpeedExamples](https://github.com/microsoft/DeepSpeedExamples/tree/1fed12e8b375b0c54902827e7140d8266dfccd59/pipeline_parallelism)
+- [EleutherAI/gpt-neox](https://github.com/EleutherAI/gpt-neox/blob/49e60fe7ad14f6991a7fa678d3a0c330d09b9ff4/megatron/training.py)
