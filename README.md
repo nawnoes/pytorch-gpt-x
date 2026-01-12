@@ -1,26 +1,62 @@
 # GPT-X
-Implementation of autoregressive language model(like GPT) using improved Transformer and DeepSpeed pipeline parallelism.
+
+An implementation of an autoregressive language model (GPT-style) using an improved Transformer and DeepSpeed pipeline parallelism.
 
 ## Improved Transformer
-Transformer used in this repository attempts to improve the transformer using the additional modules below.
+The Transformer blocks in this repo experiment with a few “Transformer improvement” ideas (mostly implemented via the `x-transformers` / Reformer ecosystem).
+
 | Name                        | Description                                                                                | Link                                           |
 |-----------------------------|--------------------------------------------------------------------------------------------|------------------------------------------------|
-| Rezero                      | Rezero Is All You Need                                                                     | [link](https://arxiv.org/abs/2003.04887)       |
+| ReZero                      | ReZero Is All You Need                                                                     | [link](https://arxiv.org/abs/2003.04887)       |
 | Explicit Sparse Transformer | Concentrated Attention Through Explicit Selection                                          | [link]( https://arxiv.org/abs/1912.11637 )     |
 | Macaron Architecture        | Understanding and Improving Transformer From a Multi-Particle Dynamic System Point of View | [link]( https://arxiv.org/pdf/1906.02762.pdf ) |
 | RealFormer                  | Residual Attention                                                                         | [link]( https://arxiv.org/abs/2012.11747 )     |
-| ALiBi Position Embedding    | effective relative positional encoding                                                     |                                                |
+| ALiBi Position Embedding    | Effective relative positional encoding                                                     |                                                |
 
 ## Model Description
+This project’s primary configuration targets a ~1B parameter decoder-only model.
+
 | model_name | n_params | n_layer | d_model | n_heads | vocab_size | max_seq_len | learning_rate |
-|:----------:|----------|---------|---------|---------|------------|-------------|---------------|
-|  GPT-X 1B  |   1B     | 20      | 2048    | 16      | 22000      | 1024        | 2.0 x 10^-4   |
+|:----------:|:--------:|:-------:|:-------:|:-------:|:----------:|:-----------:|:-------------:|
+| GPT-X 1B (pipeline) | ~1B | 20 | 2048 | 16 | 22000 | 1024 | 2e-4 |
 
 ## DeepSpeed
 DeepSpeed is a deep learning training optimization library, providing the means to train massive billion parameter models at scale.  
   
-### Piepline Parallelism
-You can train 1B GPT-X Model using deepspeed pipeline parallelism on 2 V100 GPU(16G).
+### Pipeline Parallelism
+This repo uses `deepspeed.pipe.PipelineModule` and splits the model into stages.
+
+For the provided ~1B configuration, pipeline parallelism enables training on **2× V100 16GB** (snapshot).
+
+#### Quickstart (pipeline training)
+
+1. Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+2. Prepare data (text files under a directory). The default config expects `../data/train/`:
+
+- Each file contains lines of text.
+- `common/dataset.py` will pack multiple lines into a single sequence up to `max_seq_len`, using `[CLS]` and `[SEP]`.
+
+3. Run DeepSpeed pipeline training:
+
+```bash
+cd train_deepspeed
+bash ds_train_rezero_sparsetopk.sh
+```
+
+Key configs:
+
+- Model/data config: `train_deepspeed/config_rezero_sparsetopk.json`
+- DeepSpeed config: `train_deepspeed/ds_config_rezero_sparsetopk.json`
+
+Notes:
+
+- `config_rezero_sparsetopk.json` controls `num_stages` (pipeline stages) and dataset/vocab paths.
+- The training script logs to Weights & Biases (`wandb`).
 
 #### GPU Usage
 ```
@@ -82,6 +118,14 @@ stage=1 layers=12
   loss: cross_entropy
 ```
 
+## Code map
+
+- `model/transformer.py`: GPT-style model blocks (including ReZero / sparse top-k variants)
+- `model/pipeline.py`: converts the model into a layer list for `PipelineModule`
+- `common/dataset.py`: dataset builders (`GPTXDataset`, `GPTXDatasetV2`)
+- `train_deepspeed/`: DeepSpeed pipeline training entrypoint and configs
+- `train_pl/`: PyTorch Lightning training scripts (non-pipeline)
+- `train/`: standalone training script(s)
 
 ## TODO
 
@@ -93,10 +137,10 @@ stage=1 layers=12
 - [x] ~~torch lightning~~
 - [x] ~~Deepspeed train on single GPU~~
 - [x] apply wandb
-- [x] Deepspeed pipeline parallel trainig on 2 V100 GPU with 16GB Memory
+- [x] DeepSpeed pipeline parallel training on 2× V100 16GB
 
 ## Parameter For Few-shot
-GPT-3 has a 175B parameter, and the size of the model is important for few-shot learning. In this repository, I try to pretrain language model as large as possible using 2 V100 GPUs.
+GPT-3 (175B) popularized the idea that scale matters for few-shot learning. This repo is an experiment to push model size as far as possible on **2 GPUs** using DeepSpeed pipeline parallelism.
 
 ## GPT-3 Config
 | model_name | n_params | n_layer | d_model | n_heads | d_head | batch_size | learning_rate |
@@ -134,7 +178,7 @@ GPT-3 has a 175B parameter, and the size of the model is important for few-shot 
 
 - [x-transformer: explicit_sparse_transformer](https://github.com/lucidrains/x-transformers/blob/2badf9261cda03e1497b5db62274b045cd827086/x_transformers/x_transformers.py#L469)
 
-**Macaron Architecrue**
+**Macaron Architecture**
 
 - [Understanding and Improving Transformer From a Multi-Particle Dynamic System Point of View](https://arxiv.org/pdf/1906.02762.pdf)
 
